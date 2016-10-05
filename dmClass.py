@@ -14,9 +14,11 @@ class domain:
     self.Ly = ly
     self.Lz = lz
 
-  def show(self):
+  def __str__(self):
     print('#' * 10,' Domain Parameters ','#' * 10)
     print("The grid numbers in 3D are ",self.Nx, self.Ny, self.Nz)
     print("The grid sizes in 3D are ",self.Dx, self.Dy, self.Dz, " m")
     print("The domain sizes in 3D are ",self.Lx, self.Ly, self.Lz, " m")
     print('#' * 10,' END Domain Parameters ','#' * 10)
+
+  __repr__ = __str__
