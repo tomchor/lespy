@@ -1,0 +1,148 @@
+&mpi_param
+  use_mpi = .true.,
+  nproc = 6
+/
+
+&output_control
+  average_dim_num = 2, ! in which variables to do the averages
+  output_video = .false.,
+  flagVSpl = .false.,
+  flagCSpl = .false.,
+  flag_srfV = .false., ! output surface velocity individually
+  tt_srfV = 1
+/
+&output_sample
+/
+
+&domain_param
+  nx = 50,
+  ny = 50,
+  nz_tot = 151, ! number of grid points in vertical direction + ghost point
+  lx = 150.d0, ! domain size in x direction
+  ly = 150.d0, ! domain size in y direction
+  lz_tot = 90.d0, ! total height of the simulation
+  z_i = 33.d0 ! inversion depth
+/
+
+&time_param
+  nsteps = 60000,
+  dt = 0.1d0,
+  c_count = 5,
+  p_count = 1200,
+  cs_count = 5 ! update smagorinsky dynamic coefficient
+/
+
+&flow_param
+  u_star = 6.1E-3,
+  initu = .false., ! restart the flow field
+  inilag = .true., ! should be false when restarting the simulation
+  interp = .false.,
+  DYN_init = 300, ! should be zero when restarting the simulation
+  coriolis_forcing = .false.,
+  freq_coriolis = 1.0E-4,
+  ug_dim = 3.0, ! geostrophic wind
+  vg_dim = 0.0, ! geostrophic wind
+  inflow = .false.,
+  jx_s = 50,
+  x_relax = 8,
+  jx_p = 50,
+  x_relaxp = 8,
+  use_mean_p_force = .false.,
+  ocean_flag = .true.
+  flag_relaxForce = .false.
+/
+
+&temperature_param
+  S_FLAG = .true.,
+  initsc = .false., ! restart the temperature field
+  SCAL_init = 0,
+  inilag_sc = .false.,
+  inv_strength = 0.010d0,
+  dTdz_top = 0.0d0,
+  theta_top = 300.d0,
+  T_scale = 300.d0,
+  wt_s = 3.6e-6,
+  T_init = 283.15
+/
+
+&ocean_param
+  stokes_flag = .true.,
+  amp_w = 0.8d0, ! amplitude of surface waves?
+  lambda_w = 60.d0, ! wavelength of surface waves?
+  agl_Ust = 0.d0,
+  U_PLUME_FLAG = .false.,
+  prop_mixed = 1.d0 ! proportion of z_i that is well-mixed
+/
+
+&mode_relaxForce
+  nmod_cell = 2
+/
+&relax_force
+  u0_cell = 2.d0, 2.d0,
+  advU_cell = 0.d0, 0.d0,
+  advV_cell = 0.d0, 0.d0,
+  tt0_cell = 0,
+  wn_cell = 4, 1,
+  piPhix_cell = 0.3d0, 0.d0,
+  piPhiy_cell = -0.5d0, 0.d0
+  t_relax = 21600
+  wn_filter = 10,
+  type_filter = 'diagonal'
+/
+
+&con_param
+  pcon_flag = .false., ! concentration in the simulation
+  initPCon = .false., ! read concentration from vel_sc.out
+  n_con = 2,
+  pcon_scale = 1.0, ! scale use to normalize the concentration
+  unit_pconScale = 'molecPcm3', ! unit of pcon_scale, not used in simulation
+  pcon_scheme = 3, !numerical scheme for concentration
+  periodicbcx = .false.,
+  periodicbcy = .false.,
+  pcon_init = 1,
+  lbcp = 1,
+  pcon_sfc = 500.0,
+  sfc_flux = 0.0,
+  sc = 0.8,
+  sc_boun = 0.95,
+  z_ref = 100.0,
+  settling = .true.,
+  pcon_acc = .true.,
+  inflow_pcon = .false.,
+  pointsource = .true.,
+  single_point = .true.,
+  ini_src = 1,
+  end_src = 5000000,
+  active_pcon = .false.,
+  pconsgs_acc_flag = .false.,
+  model_psgsacc = 1,
+  cs_pa = 1.0e4,
+  flag_endless = .false.
+/
+
+&particle_param
+  vel_settling = 5.4e-3, 0.0216,
+  ratio_dens = 0.8340163,  0.8340163, ! 859.8708/1031
+  vol_spec = 1.1629654e-3, 1.1629654e-3 ! 1/859.8708
+/
+
+&endless_param
+  flag_cell = .false.
+/
+
+&mode_cell
+  nmod_cell = 2
+/
+&cellular_flow
+  u0_cell = 2.d0, 2.d0,
+  advU_cell = 6.2d0, 6.2d0,
+  advV_cell = -5.8d0, -5.8d0,
+  tt0_cell = 630000,
+  dph_cell = 100.d0, 100.d0,
+  d_cell = 2000.d0, 5600.d0,
+  piPhix_cell = 0.3d0, 0.d0,
+  piPhiy_cell = -0.5d0, 0.d0
+/
+
+&chem_param
+/

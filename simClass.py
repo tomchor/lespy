@@ -1,3 +1,4 @@
+from decorators import autoassign
 @autoassign
 class simulation(object):
     """class for simulation parameters"""

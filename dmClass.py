@@ -1,4 +1,3 @@
-#!/usr/bin/env python3.4
 
 class domain:
   """class for domain parameters"""
