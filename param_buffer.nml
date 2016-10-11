@@ -4,7 +4,7 @@
 /
 
 &output_control
-  average_dim_num = 2, ! in which variables to do the averages
+  average_dim_num = 2, ! if==2 then averages over x,y,t, if==1 then averages over y,t
   output_video = .false.,
   flagVSpl = .false.,
   flagCSpl = .false.,
@@ -25,10 +25,10 @@
 /
 
 &time_param
-  nsteps = 60000,
-  dt = 0.1d0,
+  nsteps = 60000, ! total number of timesteps
+  dt = 0.1d0, ! dimensional timestep
   c_count = 5,
-  p_count = 1200,
+  p_count = 1200, ! number of timesteps for averaging
   cs_count = 5 ! update smagorinsky dynamic coefficient
 /
 

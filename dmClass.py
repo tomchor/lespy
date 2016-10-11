@@ -1,42 +1,45 @@
 
 class domain:
   """class for domain parameters"""
-  def __init__(self, nx=0, ny=0, nz=0, dx=None, dy=None, dz=None, lx=0, ly=0, lz=0):
+  def __init__(self, nx=0, ny=0, nz=0, nz_tot=None, dx=None, dy=None, dz=None, lx=0, ly=0, lz=0):
     self.Nx = nx
     self.Ld = self.Nx + 2
     self.Ny = ny
     self.Nz = nz
+    self.Nz_tot = nz_tot
     self.Lx = lx
     self.Ly = ly
     self.Lz = lz
 
     if dx!=None:
-        self.Dx = dx
+        self.dx = dx
     else:
         try:
-            self.Dx = self.Lx/self.Nx
+            self.dx = self.Lx/self.Nx
         except:
-            self.Dx = dx
+            self.dx = dx
     if dy!=None:
-        self.Dy = dy
+        self.dy = dy
     else:
         try:
-            self.Dy = self.Ly/self.Ny
+            self.dy = self.Ly/self.Ny
         except:
-            self.Dy = dy
+            self.dy = dy
     if dz!=None:
-        self.Dz = dz
+        self.dz = dz
     else:
         try:
-            self.Dz = self.Lz/self.Nz
+            self.dz = self.Lz/self.Nz
         except:
-            self.Dz = dz
+            self.dz = dz
 
   def __str__(self):
-    print('#' * 10,' Domain Parameters ','#' * 10)
-    print("The grid numbers in 3D are ",self.Nx, self.Ny, self.Nz)
-    print("The grid sizes in 3D are ",self.Dx, self.Dy, self.Dz, " m")
-    print("The domain sizes in 3D are ",self.Lx, self.Ly, self.Lz, " m")
-    print('#' * 10,' END Domain Parameters ','#' * 10)
+      buff = ''
+      buff+='#'*10 + ' Domain Parameters '+ '#'* 10
+      buff+="\nThe grid numbers in 3D are {}, {}, {}\n".format(self.Nx, self.Ny, self.Nz)
+      buff+="The grid sizes in 3D are {}, {}, {} m\n".format(self.dx, self.dy, self.dz)
+      buff+="The domain sizes in 3D are {}, {}, {} m\n".format(self.Lx, self.Ly, self.Lz)
+      buff+='#' * 10+' END Domain Parameters ' + '#'*10
+      return buff
 
   __repr__ = __str__
