@@ -1,28 +1,72 @@
 
-SUBROUTINE POSTPROC(dir, postpfile, nz, z_scale, u_star, dt_dim, nt, tini, tend, T_scale)
+subroutine mwe2(dir, postpfile, nz, z_scale, outarr)
+IMPLICIT NONE
+
+INTEGER         :: nz
+REAL(KIND=8)    :: z_scale 
+CHARACTER(len=100)      :: postpfile
+CHARACTER(len=100)         :: dir
+REAL(KIND=8),INTENT(OUT),DIMENSION(2,4) :: outarr
+
+print*,'dir ', dir
+print*,'postpfile ', postpfile
+print*,'nz ', nz
+print*,'Lz ', z_scale
+
+outarr = 4.5d0
+END subroutine
+
+
+
+FUNCTION mwe(dir, postpfile, nz, z_scale)
+
+IMPLICIT NONE
+
+INTEGER         :: nz
+REAL(KIND=8)    :: z_scale 
+CHARACTER(len=100)      :: postpfile
+CHARACTER(len=100)         :: dir
+REAL(KIND=8),DIMENSION (2,2)   :: mwe
+!REAL(kind=8)  :: mwe
+
+print*,'dir ', dir
+print*,'postpfile ', postpfile
+print*,'nz ', nz
+print*,'Lz ', z_scale
+
+mwe = 4.5d0
+END FUNCTION mwe
+
+
+
+
+FUNCTION POSTPROC(dir, postpfile, nz, z_scale)!, u_star, dt_dim, nt, tini, tend, T_scale)
 
 IMPLICIT NONE
 
 ! Parameters
-INTEGER          :: nz              ! Number of z-nodes
 REAL(KIND=8),PARAMETER     :: kappa=0.4D0         ! Von Karman constant
 
+INTEGER         :: nz            ! Number of z-nodes
 REAL(KIND=8)    :: z_scale       ! Length Scale
 REAL(KIND=8)    :: u_star        ! u* scale used in program
+REAL(KIND=8)    :: T_scale       ! theta scale
 REAL(KIND=8)    :: dt_dim ! dimensional dt
 REAL(KIND=8)    :: dt     ! non-dimensional timestep
-REAL(KIND=8)    :: T_scale       ! theta scale
 
-CHARACTER(len=100)      :: postpfile            ! Run to be processed
+CHARACTER      :: postpfile            ! Run to be processed
+!CHARACTER(len=100)      :: postpfile            ! Run to be processed
 INTEGER      :: nt               ! Total number of time outputs
 INTEGER      :: tend             ! Final timestep for averaging (output/2.5)
 INTEGER      :: tini             ! Initial timestep for averaging (output/2.5)
 
 ! Main variables
-CHARACTER(len=60)          :: file                ! File name
-CHARACTER(len=100)          :: dir                 ! Folder
+CHARACTER(len=200)           :: file                ! File name
+CHARACTER         :: dir                 ! Folder
+!CHARACTER(len=100)         :: dir                 ! Folder
 REAL(KIND=8),ALLOCATABLE   :: z(:,:)              ! Vertical coordinates
 REAL(KIND=8),ALLOCATABLE   :: avgtx(:,:)          ! Averages
+REAL(KIND=8),DIMENSION (2,23)   :: postproc       ! Output array
 
 ! Variables to determine ustar
 INTEGER                    :: num                 ! Number of points for time averaging
@@ -37,11 +81,17 @@ REAL(KIND=8),ALLOCATABLE   :: ustarr(:)           ! Data averaged in x
 INTEGER                    :: i             ! Counters
 REAL                       :: aux           ! Auxiliar
 logical :: exist ! file exist flag
+u_star=0.0061
+dt_dim=0.1
+nt=600000
+tini=10000
+tend=nt
+T_scale=300.d0
 
 dt=dt_dim*u_star/z_scale            ! Timestep
 
-print *, 'tinit = ', tini
-print *, 'tend = ', tend
+!print *, 'tinit = ', tini
+!print *, 'tend = ', tend
 
 !
 ! BEGINNING CODE   
@@ -51,11 +101,13 @@ print *, 'tend = ', tend
 ALLOCATE(z(3,nz),avgtx(25,nz))
 ALLOCATE(t(nt),tt(nt),dat(nt,3),ustar(nt),tstar(nt),ustarr(nt))
 
-! Folder with output of outdir to be processed
-
 
 ! Read data from file
 file=TRIM(dir)//'/aver_txz.out'
+print*,'dir ', dir
+print*,'postpfile ', postpfile
+print*,'nz ', nz
+print*,'Lz ', z_scale
 OPEN(UNIT=10,FILE=file,STATUS='OLD',ACTION='READ') 
 file=TRIM(dir)//'/aver_tyz.out'
 OPEN(UNIT=11,FILE=file,STATUS='OLD',ACTION='READ')    
@@ -293,8 +345,8 @@ DO i=1,nz
 END DO
 CLOSE(10) 
 
-  
-END SUBROUTINE POSTPROC
+postproc = 4.5 
+END FUNCTION POSTPROC
 
 
 
@@ -322,7 +374,7 @@ INTEGER                    :: tini            ! Initial time for averaging
 INTEGER                    :: tend            ! Final time for averaging
 REAL(KIND=8)               :: dt              ! Time step
 REAL(KIND=8)               :: time            ! Time
-CHARACTER(LEN=*)          :: file            ! File name
+CHARACTER(LEN=*)           :: file            ! File name
 INTEGER,DIMENSION(nt)            :: t         ! Time
 REAL(KIND=8),DIMENSION(nt,nz) :: dat       ! Data
 REAL(KIND=8),DIMENSION(nz)       :: avg       ! Data averaged in t

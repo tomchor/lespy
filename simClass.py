@@ -1,5 +1,5 @@
 #from decorators import autoassign as _auto
-from decorators import autoargs as _auto
+from .decorators import autoargs as _auto
 
 class Simulation(object):
     """class for simulation parameters"""
@@ -19,14 +19,17 @@ class Simulation(object):
     __repr__ = __str__
 
 
-def simulation(namelist):
-    from utils import paramParser
-    from dmClass import domain as Dom
+def simulation(namelist, tlength_from_ke=True):
+    from .utils import paramParser
+    from .dmClass import domain as Dom
     params = paramParser(namelist)
     dmn = Dom(nx=params['nx'], ny=params['ny'], nz_tot=params['nz_tot'],
             nz=params['nz_tot']-1,
             lx=params['lx'], ly=params['ly'], lz=params['lz_tot'])
     
+    if tlength_from_ke:
+        tlength = 720000
+
     out = Simulation(domain=dmn,
             timelength=params['nsteps'],
             avglength=params['p_count'],

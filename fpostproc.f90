@@ -1,26 +1,47 @@
 
-SUBROUTINE POSTPROC(dir, postpfile, nz, z_scale, u_star, dt_dim, nt, tini, tend, T_scale)
+FUNCTION mwe(dir, postpfile, nz, z_scale)
+
+IMPLICIT NONE
+
+INTEGER         :: nz
+REAL(KIND=8)    :: z_scale 
+CHARACTER(len=100)      :: postpfile
+CHARACTER(len=100)         :: dir
+REAL(KIND=8),DIMENSION (2,2)   :: mwe
+!REAL(kind=8)  :: mwe
+
+print*,'dir ', dir
+print*,'postpfile ', postpfile
+print*,'nz ', nz
+print*,'Lz ', z_scale
+
+mwe = 4.5d0
+END FUNCTION mwe
+
+
+
+
+SUBROUTINE POSTPROC(dir, nz, z_scale, u_star, dt_dim, nt, tini, tend, T_scale, outdata)
 
 IMPLICIT NONE
 
 ! Parameters
-INTEGER          :: nz              ! Number of z-nodes
 REAL(KIND=8),PARAMETER     :: kappa=0.4D0         ! Von Karman constant
 
+INTEGER         :: nz            ! Number of z-nodes
 REAL(KIND=8)    :: z_scale       ! Length Scale
 REAL(KIND=8)    :: u_star        ! u* scale used in program
+REAL(KIND=8)    :: T_scale       ! theta scale
 REAL(KIND=8)    :: dt_dim ! dimensional dt
 REAL(KIND=8)    :: dt     ! non-dimensional timestep
-REAL(KIND=8)    :: T_scale       ! theta scale
 
-CHARACTER(len=100)      :: postpfile            ! Run to be processed
 INTEGER      :: nt               ! Total number of time outputs
 INTEGER      :: tend             ! Final timestep for averaging (output/2.5)
 INTEGER      :: tini             ! Initial timestep for averaging (output/2.5)
 
 ! Main variables
-CHARACTER(len=60)          :: file                ! File name
-CHARACTER(len=100)          :: dir                 ! Folder
+CHARACTER(len=200)           :: file                ! File name
+CHARACTER(len=100)         :: dir                 ! Folder
 REAL(KIND=8),ALLOCATABLE   :: z(:,:)              ! Vertical coordinates
 REAL(KIND=8),ALLOCATABLE   :: avgtx(:,:)          ! Averages
 
@@ -33,6 +54,9 @@ REAL(KIND=8),ALLOCATABLE   :: tstar(:)            ! Data averaged in x
 REAL(KIND=8)               :: tstar_avg_curr            ! Data averaged in x and t
 REAL(KIND=8),ALLOCATABLE   :: ustarr(:)           ! Data averaged in x
 
+! Output variable
+REAL(KIND=8),INTENT(OUT),DIMENSION (23,nz)   :: outdata       ! Output array
+
 ! Auxiliar variables
 INTEGER                    :: i             ! Counters
 REAL                       :: aux           ! Auxiliar
@@ -40,8 +64,8 @@ logical :: exist ! file exist flag
 
 dt=dt_dim*u_star/z_scale            ! Timestep
 
-print *, 'tinit = ', tini
-print *, 'tend = ', tend
+!print *, 'tinit = ', tini
+!print *, 'tend = ', tend
 
 !
 ! BEGINNING CODE   
@@ -50,8 +74,6 @@ print *, 'tend = ', tend
 ! Memory allocation
 ALLOCATE(z(3,nz),avgtx(25,nz))
 ALLOCATE(t(nt),tt(nt),dat(nt,3),ustar(nt),tstar(nt),ustarr(nt))
-
-! Folder with output of outdir to be processed
 
 
 ! Read data from file
@@ -238,63 +260,67 @@ z(3,1)=z(1,1)
 z(3,2:nz)=z(2,1:nz-1)
 
 ! Output results
-file=postpfile
-OPEN(UNIT=10,FILE=file,STATUS='UNKNOWN',ACTION='WRITE')
 DO i=1,nz
   if (i == 1) then
-  WRITE(10,'(25F20.8)')z(1,i)*z_scale,&   ! z
-                       z(2,i)*z_scale,&   ! z
-                       z(3,i)*z_scale,&   ! z
-                       avgtx(1,i),&   ! <U>/u*
-                       avgtx(2,i),&   ! <V>/u*
-                       avgtx(3,i),&   ! <W>/u*
-                       avgtx(4,i),&   ! <dUdz>/u**dz*
-                       avgtx(5,i),&   ! <dVdz>/u**dz*
-                       avgtx(20,i),&  ! <U>
-                       avgtx(21,i),&  ! <V>
-                       avgtx(22,i),&  ! <Theta>
-                       avgtx(6,i)-avgtx(1,i)*avgtx(1,i) ,&    !<u^2>/u*^2
-                       avgtx(7,i)-avgtx(2,i)*avgtx(2,i) ,&    !<v^2>/u*^2
-                       avgtx(8,i)-avgtx(3,i)*avgtx(3,i) ,&    !<w^2>/u*^2
-                       avgtx(9,i)-avgtx(1,i)*avgtx(3,i)+avgtx(14,i) , &!<uw>/u*^2
-                       avgtx(10,i)-avgtx(2,i)*avgtx(3,i)+avgtx(15,i), &!<vw>/u*^2
-                       avgtx(24,i)-avgtx(3,i)*avgtx(22,i)/tstar_avg_curr+avgtx(25,i), & !<wT>/u*T*
-                       avgtx(16,i),  &   ! cs
-                       avgtx(17,i),  &   ! beta
-                       avgtx(18,i),  &   ! beta_clip
-                       avgtx(19,i),  &   ! cs_rns
-                       avgtx(14,i) ,& !<txz>/u*^2
-                       avgtx(15,i) !<tyz>/u*^2
+
+        outdata(1,i) = z(1,i)*z_scale   ! z
+        outdata(2,i) = z(2,i)*z_scale   ! z
+        outdata(3,i) = z(3,i)*z_scale   ! z
+        outdata(4,i) = avgtx(1,i)   ! <U>/u*
+        outdata(5,i) =        avgtx(2,i)   ! <V>/u*
+        outdata(6,i) =        avgtx(3,i)   ! <W>/u*
+        outdata(7,i) =        avgtx(4,i)   ! <dUdz>/u**dz*
+        outdata(8,i) =        avgtx(5,i)   ! <dVdz>/u**dz*
+        outdata(9,i) =        avgtx(20,i)  ! <U>
+        outdata(10,i) =        avgtx(21,i)  ! <V>
+        outdata(11,i) =        avgtx(22,i)  ! <Theta>
+        outdata(12,i) =        avgtx(6,i)-avgtx(1,i)*avgtx(1,i)    !<u^2>/u*^2
+        outdata(13,i) =        avgtx(7,i)-avgtx(2,i)*avgtx(2,i)    !<v^2>/u*^2
+        outdata(14,i) =        avgtx(8,i)-avgtx(3,i)*avgtx(3,i)    !<w^2>/u*^2
+        outdata(15,i) =        avgtx(9,i)-avgtx(1,i)*avgtx(3,i)+avgtx(14,i) !<uw>/u*^2
+        outdata(16,i) =        avgtx(10,i)-avgtx(2,i)*avgtx(3,i)+avgtx(15,i) !<vw>/u*^2
+        outdata(17,i) =        avgtx(24,i)-avgtx(3,i)*avgtx(22,i)/tstar_avg_curr+avgtx(25,i) !<wT>/u*T*
+        outdata(18,i) =        avgtx(16,i)   ! cs
+        outdata(19,i) =        avgtx(17,i)   ! beta
+        outdata(20,i) =        avgtx(18,i)   ! beta_clip
+        outdata(21,i) =        avgtx(19,i)   ! cs_rns
+        outdata(22,i) =        avgtx(14,i)  !<txz>/u*^2
+        outdata(23,i) =        avgtx(15,i) !<tyz>/u*^2
+
   else
-  WRITE(10,'(25F20.8)')z(1,i)*z_scale,&   ! z
-                       z(2,i)*z_scale,&   ! z
-                       z(3,i)*z_scale,&   ! z
-                       avgtx(1,i),&   ! <U>/u*
-                       avgtx(2,i),&   ! <V>/u*
-                       avgtx(3,i),&   ! <W>/u*
-                       avgtx(4,i),&   ! <dUdz>/u**dz*
-                       avgtx(5,i),&   ! <dVdz>/u**dz*
-                       avgtx(20,i),&  ! <U>
-                       avgtx(21,i),&  ! <V>
-                       avgtx(22,i),&  ! <Theta>
-                       avgtx(6,i)-avgtx(1,i)*avgtx(1,i) ,&    !<u^2>/u*^2
-                       avgtx(7,i)-avgtx(2,i)*avgtx(2,i) ,&    !<v^2>/u*^2
-                       avgtx(8,i)-avgtx(3,i)*avgtx(3,i) ,&    !<w^2>/u*^2
-                       avgtx(9,i)-0.5*(avgtx(1,i)+avgtx(1,i-1))*avgtx(3,i)+avgtx(14,i),& !<uw>/u*^2
-                       avgtx(10,i)-0.5*(avgtx(2,i)+avgtx(2,i-1))*avgtx(3,i)+avgtx(15,i),& !<vw>/u*^2
-                       avgtx(24,i)-avgtx(3,i)*avgtx(22,i)/tstar_avg_curr+avgtx(25,i), & !<wT>/u*T*
-                       avgtx(16,i),  &   ! cs
-                       avgtx(17,i),  &   ! beta
-                       avgtx(18,i),  &   ! beta_clip
-                       avgtx(19,i),  &   ! cs_rns
-                       avgtx(14,i) ,& !<txz>/u*^2
-                       avgtx(15,i) !<tyz>/u*^2
+
+        outdata(1,i) = z(1,i)*z_scale   ! z
+        outdata(2,i) = z(2,i)*z_scale   ! z
+        outdata(3,i) = z(3,i)*z_scale   ! z
+        outdata(4,i) = avgtx(1,i)   ! <U>/u*
+        outdata(5,i) =        avgtx(2,i)   ! <V>/u*
+        outdata(6,i) =        avgtx(3,i)   ! <W>/u*
+        outdata(7,i) =        avgtx(4,i)   ! <dUdz>/u**dz*
+        outdata(8,i) =        avgtx(5,i)   ! <dVdz>/u**dz*
+        outdata(9,i) =        avgtx(20,i)  ! <U>
+        outdata(10,i) =        avgtx(21,i)  ! <V>
+        outdata(11,i) =        avgtx(22,i)  ! <Theta>
+        outdata(12,i) =        avgtx(6,i)-avgtx(1,i)*avgtx(1,i)    !<u^2>/u*^2
+        outdata(13,i) =        avgtx(7,i)-avgtx(2,i)*avgtx(2,i)    !<v^2>/u*^2
+        outdata(14,i) =        avgtx(8,i)-avgtx(3,i)*avgtx(3,i)    !<w^2>/u*^2
+        outdata(15,i) =        avgtx(9,i)-0.5*(avgtx(1,i)+avgtx(1,i-1))*avgtx(3,i)+avgtx(14,i)  !<uw>/u*^2
+        outdata(16,i) =        avgtx(10,i)-0.5*(avgtx(2,i)+avgtx(2,i-1))*avgtx(3,i)+avgtx(15,i) !<vw>/u*^2
+        outdata(17,i) =        avgtx(24,i)-avgtx(3,i)*avgtx(22,i)/tstar_avg_curr+avgtx(25,i)    !<wT>/u*T*
+        outdata(18,i) =        avgtx(16,i)   ! cs
+        outdata(19,i) =        avgtx(17,i)   ! beta
+        outdata(20,i) =        avgtx(18,i)   ! beta_clip
+        outdata(21,i) =        avgtx(19,i)   ! cs_rns
+        outdata(22,i) =        avgtx(14,i)  !<txz>/u*^2
+        outdata(23,i) =        avgtx(15,i) !<tyz>/u*^2
+
+
+
+
   endif
 END DO
 CLOSE(10) 
 
-  
-END SUBROUTINE POSTPROC
+END SUBROUTINE
 
 
 
@@ -322,7 +348,7 @@ INTEGER                    :: tini            ! Initial time for averaging
 INTEGER                    :: tend            ! Final time for averaging
 REAL(KIND=8)               :: dt              ! Time step
 REAL(KIND=8)               :: time            ! Time
-CHARACTER(LEN=*)          :: file            ! File name
+CHARACTER(LEN=*)           :: file            ! File name
 INTEGER,DIMENSION(nt)            :: t         ! Time
 REAL(KIND=8),DIMENSION(nt,nz) :: dat       ! Data
 REAL(KIND=8),DIMENSION(nz)       :: avg       ! Data averaged in t

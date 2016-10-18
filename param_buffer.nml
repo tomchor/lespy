@@ -25,7 +25,7 @@
 /
 
 &time_param
-  nsteps = 60000, ! total number of timesteps
+  nsteps = 360000, ! total number of timesteps
   dt = 0.1d0, ! dimensional timestep
   c_count = 5,
   p_count = 1200, ! number of timesteps for averaging
@@ -34,10 +34,10 @@
 
 &flow_param
   u_star = 6.1E-3,
-  initu = .false., ! restart the flow field
-  inilag = .true., ! should be false when restarting the simulation
+  initu = .true., ! restart the flow field
+  inilag = .false., ! should be false when restarting the simulation
   interp = .false.,
-  DYN_init = 300, ! should be zero when restarting the simulation
+  DYN_init = 0, ! should be zero when restarting the simulation
   coriolis_forcing = .false.,
   freq_coriolis = 1.0E-4,
   ug_dim = 3.0, ! geostrophic wind
@@ -48,20 +48,20 @@
   jx_p = 50,
   x_relaxp = 8,
   use_mean_p_force = .false.,
-  ocean_flag = .true.
-  flag_relaxForce = .false.
+  ocean_flag = .true.,
+  flag_relaxForce = .false.,
 /
 
 &temperature_param
   S_FLAG = .true.,
-  initsc = .false., ! restart the temperature field
+  initsc = .true., ! restart the temperature field
   SCAL_init = 0,
   inilag_sc = .false.,
   inv_strength = 0.010d0,
   dTdz_top = 0.0d0,
   theta_top = 300.d0,
   T_scale = 300.d0,
-  wt_s = 3.6e-6,
+  wt_s = 1.3892e-06, ! heat flux (units of w*T)
   T_init = 283.15
 /
 

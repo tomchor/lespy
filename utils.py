@@ -3,7 +3,7 @@
 def paramParser(namelist):
     """Function that parses parameters from param.nml namelist files
     """
-    from f90nml import read
+    from .f90nml import read
     if isinstance(namelist, str):
         namelist=open(namelist,'rt')
 
