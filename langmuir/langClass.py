@@ -60,4 +60,5 @@ class stokesDrift:
       z = np.asarray(z)
       dusdz = 2 * self.wn * self.us0 * np.exp(2 * self.wn * z)
       return (dusdz*np.cos(ag_rad), dusdz*np.sin(ag_rad))
-### END Class definition ###
+
+

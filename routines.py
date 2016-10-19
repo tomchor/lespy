@@ -35,10 +35,10 @@ def postProcessAvgs(outputdir, t_ini=55000, t_end=None, simulation=None, postpfi
     return
 
 
-def postProcess2D(outputdir, t_ini=55000, t_end=None, simulation=None, postpfile='aux.txt'):
+def postProcess2D(outputdir, t_ini=None, t_end=None, simulation=None, return_df=False):
     """
     Postprocess average results from LES output
-    Compiled for python from the postproc-vel2.f90 routine
+    Compiled for python from the fpostproc.f90 subroutine file
     """
     from .fpostproc import postproc
     import numpy as np
@@ -54,8 +54,18 @@ def postProcess2D(outputdir, t_ini=55000, t_end=None, simulation=None, postpfile
         t_end = simulation.timelength
     T_scale = simulation.T_scale
     nt = int(simulation.timelength/simulation.avglength)
-    aux = postproc(outputdir, nz, Lz, u_star, dt_dim, nt, t_ini, t_end, T_scale)
+    outdat = postproc(outputdir, nz, Lz, u_star, dt_dim, nt, t_ini, t_end, T_scale)
 
-    return aux
+    if return_df:
+        import pandas as pd
+        outdat = pd.DataFrame(outdat.T)
+        columns = ['z_uv', 'z_w', 'z_cs', '<U>/u*', '<V>/u*', '<W>/u*', '<dUdz>/u**dz*',
+                '<dVdz>/u**dz*', '<U>', '<V>', '<Theta>', '<u^2>/u*^2', '<v^2>/u*^2',
+                '<w^2>/u*^2', '<uw>/u*^2', '<vw>/u*^2', '<wT>/u*T*', 'cs',
+                'beta', 'beta_clip', 'cs_rns', '<txz>/u*^2', '<tyz>/u*^2']
+        outdat.columns = columns
+
+    return outdat
+
 
 

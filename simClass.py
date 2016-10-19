@@ -28,10 +28,26 @@ def simulation(namelist, tlength_from_ke=True):
             lx=params['lx'], ly=params['ly'], lz=params['lz_tot'])
     
     if tlength_from_ke:
-        tlength = 720000
+        from os import path
+        import numpy as _np
+        kefile = path.join(path.dirname(namelist), '../check_ke.out')
+        print('opening',kefile)
+        kearray = _np.loadtxt(kefile)
+        print(kearray[:,0])
+        kelast = int(kearray[-1,0]+1)
+        kecount = len(kearray[:,0])
+        if kelast == kecount:
+            tlength = kelast
+        else:
+            print('Warning: linescount in ke_check.out is different from index label in the file.')
+            print('Setting timelength to the line count.')
+            tlength = kecount
+    else:
+        print('Warining: getting length solely from param.nml, which can be flawed.')
+        tlength = params['nsteps']
 
     out = Simulation(domain=dmn,
-            timelength=params['nsteps'],
+            timelength=tlength,
             avglength=params['p_count'],
             dt=params['dt'],
             u_scale=params['u_star'],
