@@ -33,7 +33,6 @@ def simulation(namelist, tlength_from_ke=True):
         kefile = path.join(path.dirname(namelist), '../check_ke.out')
         print('opening',kefile)
         kearray = _np.loadtxt(kefile)
-        print(kearray[:,0])
         kelast = int(kearray[-1,0]+1)
         kecount = len(kearray[:,0])
         if kelast == kecount:
