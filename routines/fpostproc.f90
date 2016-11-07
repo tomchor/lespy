@@ -1,25 +1,4 @@
 
-FUNCTION mwe(dir, postpfile, nz, z_scale)
-
-IMPLICIT NONE
-
-INTEGER         :: nz
-REAL(KIND=8)    :: z_scale 
-CHARACTER(len=100)      :: postpfile
-CHARACTER(len=100)         :: dir
-REAL(KIND=8),DIMENSION (2,2)   :: mwe
-!REAL(kind=8)  :: mwe
-
-print*,'dir ', dir
-print*,'postpfile ', postpfile
-print*,'nz ', nz
-print*,'Lz ', z_scale
-
-mwe = 4.5d0
-END FUNCTION mwe
-
-
-
 
 SUBROUTINE POSTPROC(dir, nz, z_scale, u_star, dt_dim, nt, tini, tend, T_scale, outdata)
 

@@ -19,7 +19,10 @@ def read(nml_fname):
 
     >>> data_nml = f90nml.read('data.nml')"""
 
-    nml_file = open(nml_fname, 'r')
+    if isinstance(nml_name,str):
+        nml_file = open(nml_fname, 'r')
+    else:
+        nml_file = nml_fname
 
     f90 = shlex.shlex(nml_file)
     f90.commenters = '!'

@@ -13,38 +13,19 @@ def readMeanPP(fpath):
     avgs.columns=columns
     return avgs
 
-def postProcessAvgs(outputdir, t_ini=55000, t_end=None, simulation=None, postpfile='postp.out'):
-    """
-    Postprocess average results from LES output
-    Compiled for python from the postproc-vel2.f90 routine
-    """
-    from .postmod import postproc
-    if not simulation:
-        from os import path
-        params = paramParser(path.join(outputdir, 'codebkp/params.nml.bkp'))
 
-    nz = simulation.domain.Nz
-    Lz = simulation.domain.Lz
-    u_star = simulation.u_scale
-    dt_dim = simulation.dt
-    if not t_end:
-        t_end = simulation.timelength
-    T_scale = simulation.T_scale
-    nt = int(simulation.timelength/simulation.avglength)
-    postproc(outputdir, postpfile, nz, Lz, u_star, dt_dim, nt, t_ini, t_end, T_scale)
-    return
-
-
-def postProcess2D(outputdir, t_ini=None, t_end=None, simulation=None, return_df=False):
+def postProcess2D(model_outputdir, t_ini=100000, t_end=None, simulation=None, return_df=False):
     """
     Postprocess average results from LES output
     Compiled for python from the fpostproc.f90 subroutine file
     """
     from .fpostproc import postproc
+    from .utils import paramParser
+    from . import simClass
     import numpy as np
     if not simulation:
         from os import path
-        params = paramParser(path.join(outputdir, 'codebkp/params.nml.bkp'))
+        simulation = simClass.simulation(path.join(model_outputdir, 'codebkp/param.nml'))
 
     nz = simulation.domain.Nz
     Lz = simulation.domain.Lz
@@ -54,7 +35,8 @@ def postProcess2D(outputdir, t_ini=None, t_end=None, simulation=None, return_df=
         t_end = simulation.timelength
     T_scale = simulation.T_scale
     nt = int(simulation.timelength/simulation.avglength)
-    outdat = postproc(outputdir, nz, Lz, u_star, dt_dim, nt, t_ini, t_end, T_scale)
+
+    outdat = postproc(model_outputdir, nz, Lz, u_star, dt_dim, nt, t_ini, t_end, T_scale)
 
     if return_df:
         import pandas as pd
@@ -68,4 +50,11 @@ def postProcess2D(outputdir, t_ini=None, t_end=None, simulation=None, return_df=
     return outdat
 
 
+def readBinary(fname, simulation=None):
+    """Reads a binary file according to the simulation object passed
+    """
+    if isinstance(simulation, str):
+        from simClass import simulation as Sim
+        simulation = Sim(simulation)
+    return
 
