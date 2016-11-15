@@ -20,8 +20,8 @@ def postProcess2D(model_outputdir, t_ini=100000, t_end=None, simulation=None, re
     Compiled for python from the fpostproc.f90 subroutine file
     """
     from .fpostproc import postproc
-    from .utils import paramParser
-    from . import simClass
+    from ..utils import paramParser
+    from .. import simClass
     import numpy as np
     if not simulation:
         from os import path
@@ -53,8 +53,16 @@ def postProcess2D(model_outputdir, t_ini=100000, t_end=None, simulation=None, re
 def readBinary(fname, simulation=None):
     """Reads a binary file according to the simulation object passed
     """
+    from . import read_instant as read
     if isinstance(simulation, str):
-        from simClass import simulation as Sim
+        from ..simClass import simulation as Sim
         simulation = Sim(simulation)
+
+    sim = simulation
+    if simulation.s_flag and simulation.pcon_flag:
+        u,v,w,T,pcon,depo,real_depo,ustar_avg,psurf_flux, psurf_flux_depo=read.read_vel_pcon(fname, sim.nx, sim.ny, sim.nz_tot, sim.n_con)
+        return u,v,w,T,pcon
+
+
     return
 

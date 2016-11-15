@@ -19,7 +19,7 @@ def read(nml_fname):
 
     >>> data_nml = f90nml.read('data.nml')"""
 
-    if isinstance(nml_name,str):
+    if isinstance(nml_fname, str):
         nml_file = open(nml_fname, 'r')
     else:
         nml_file = nml_fname

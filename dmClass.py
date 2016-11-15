@@ -35,11 +35,9 @@ class domain:
 
   def __str__(self):
       buff = ''
-      buff+='#'*10 + ' Domain Parameters '+ '#'* 10
-      buff+="\nThe grid numbers in 3D are {}, {}, {}\n".format(self.Nx, self.Ny, self.Nz)
-      buff+="The grid sizes in 3D are {}, {}, {} m\n".format(self.dx, self.dy, self.dz)
-      buff+="The domain sizes in 3D are {}, {}, {} m\n".format(self.Lx, self.Ly, self.Lz)
-      buff+='#' * 10+' END Domain Parameters ' + '#'*10
+      buff+="\nx, y, z grid numbers: {}, {}, {}\n".format(self.Nx, self.Ny, self.Nz)
+      buff+="dx, dy, dz: {}, {}, {} m\n".format(self.dx, self.dy, self.dz)
+      buff+="Lx, Ly, Lz: {}, {}, {} m\n".format(self.Lx, self.Ly, self.Lz)
       return buff
 
   __repr__ = __str__

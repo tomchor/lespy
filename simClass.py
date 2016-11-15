@@ -2,7 +2,6 @@ from .decorators import autoargs as _auto
 
 class Simulation(object):
     """class for simulation parameters"""
-    #@_auto
     def __init__(self, domain=None, dt=None, timelength=None, u_scale=None, inversion_depth=None, **kwargs):
         self.domain = domain
         self.dt = dt
@@ -26,9 +25,9 @@ class Simulation(object):
 
 
     def __str__(self):
-        buff=' Simulation Parameters\n'+ '-'*22
-        buff+='\ndt:',self.dt
-        buff+=self.domain.__str__()
+        buff='Simulation Parameters\n'+ '-'*21
+        buff+='\ndt: {} s'.format(self.dt)
+        buff+= self.domain.__str__()
         return buff
 
     __repr__ = __str__
@@ -44,13 +43,18 @@ def simulation(namelist, tlength_from_ke=True):
     
     if tlength_from_ke:
         from os import path
-        import numpy as _np
+        #import numpy as _np
+        import pandas as _pd
         kefile = path.join(path.dirname(namelist), '../check_ke.out')
+        kefile2 = path.join(path.dirname(namelist), 'output/check_ke.out')
         print('opening',kefile)
         try:
-            kearray = _np.loadtxt(kefile)
-            kelast = int(kearray[-1,0]+1)
-            kecount = len(kearray[:,0])
+            #kearray = _np.loadtxt(kefile)
+            kearray = _pd.read_csv(kefile, delim_whitespace=True, squeeze=True, index_col=0, header=None)
+            #kelast = int(kearray[-1,0]+1)
+            #kecount = len(kearray[:,0])
+            kelast = kearray.index[-1]
+            kecount = len(kearray.index)
             if kelast == kecount:
                 tlength = kelast
             else:
@@ -58,7 +62,7 @@ def simulation(namelist, tlength_from_ke=True):
                 print('Setting timelength to the line count.')
                 tlength = kecount
         except FileNotFoundError:
-            print("coundn't open check_ke.out.")
+            print("Coulndn't open check_ke.out.")
             tlength = params['nsteps']
     else:
         print('Warining: getting length solely from param.nml, which can be flawed.')
@@ -67,9 +71,16 @@ def simulation(namelist, tlength_from_ke=True):
     out = Simulation(domain=dmn,
             timelength=tlength,
             avglength=params['p_count'],
-            dt=params['dt'],
             u_scale=params['u_star'],
             inversion_depth=params['z_i'],
-            T_scale=params['t_scale'])
+            T_scale=params['t_scale'],
+            **params)
+#            pcon_flag=params['pcon_flag'],
+#            s_flag=params['s_flag'],
+#            ix_src=params['ix_src'],
+#            iy_src=params['iy_src'],
+#            iz_src=params['iz_src'],
+#            vel_settling=params['vel_settling'],
+#            stokes_flag=['stokes_flag'])
 
     return out
