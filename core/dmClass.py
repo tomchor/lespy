@@ -1,9 +1,10 @@
 
 class domain:
-  """class for domain parameters"""
-  def __init__(self, nx=0, ny=0, nz=0, nz_tot=None, dx=None, dy=None, dz=None, lx=0, ly=0, lz=0):
+  """Class for domain parameters"""
+  def __init__(self, nx=None, ny=None, nz=None, nz_tot=None,
+          dx=None, dy=None, dz=None, lx=None, ly=None, lz=None):
     self.Nx = nx
-    self.Ld = self.Nx + 2
+    self.Ld = 2*((self.Nx//2)+1)
     self.Ny = ny
     self.Nz = nz
     self.Nz_tot = nz_tot

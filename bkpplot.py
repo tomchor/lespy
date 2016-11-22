@@ -73,9 +73,9 @@ def pcon_2D_animation(bins, outname=None, which='xz', simulation=None,
 
     sim = simulation
     if trim_x:
-        xar = np.arange(0,sim.domain.Nx)*sim.domain.dx
-    else:
         xar = np.arange(0,sim.domain.Ld)*sim.domain.dx
+    else:
+        xar = np.arange(0,sim.domain.Nx)*sim.domain.dx
     yar = (np.arange(0,sim.ny)*sim.domain.dy).reshape(-1,1)
     zar = (np.arange(0,sim.nz_tot)*sim.domain.dz).reshape(-1,1)
 
@@ -83,10 +83,7 @@ def pcon_2D_animation(bins, outname=None, which='xz', simulation=None,
     for fname in bins:
         print(fname)
         u,v,w,T,pcon = routines.readBinary(fname, simulation=sim)
-        if trim_x:
-            pcon = pcon[:-2,:,:, n_pcon]
-        else:
-            pcon = pcon[:,:,:, n_pcon]
+        pcon = pcon[:,:,:, n_pcon]
 
         #-------
         # To take care of slightly negative or zero concentrations for plotting purposes
@@ -94,89 +91,18 @@ def pcon_2D_animation(bins, outname=None, which='xz', simulation=None,
         pcon = abs(pcon)
         #-------
 
-        flat = func(pcon)
-        if which=='xz':
-            plt.xlabel('x')
+
+        plt.xlabel('x')
+        if which=='xz' or which=='zx':
+            flat = pcon.mean(axis=1)[:-2]
             plt.ylabel('z')
-            a2 = -zar
-            a1 = xar
+            snaps.append(( plt.pcolormesh(xar, -zar, flat.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1)), ))
         elif which=='xy':
-            plt.xlabel('x')
+            flat = pcon.mean(axis=2)[:-2]
             plt.ylabel('y')
-            a1 = xar
-            a2 = yar
+            snaps.append(( plt.pcolormesh(flat.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1)), ))
         else:
-            a1=range(flat.shape[0])
-            a2=range(flat.shape[1])
-        aux = plt.pcolormesh(a1, a2, flat.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1))
-        snaps.append([aux])
-        #snaps.append(( plt.pcolormesh(a1, a2, flat.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1)), ))
-
-
-    animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True, repeat_delay=300)
-
-    if outname:
-        animated.save(outname)
-    else:
-        return animated
-
-
-def pcon_side_animation(bins, outname=None, simulation=None,
-        n_pcon=0, xz_func=lambda x: x.mean(axis=1),
-        xy_func=lambda x: x.mean(axis=2), trim_x=True):
-    """
-    Prints 2D animations from binary data for oil concentrations
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import matplotlib.animation as anim
-    from matplotlib import colors
-    from . import routines
-
-    #fig = plt.figure()
-    fig, axes = plt.subplots(2, sharex=True, figsize=(6,11))
-    fig.tight_layout()
-    axes[0].set_aspect('equal')
-    axes[1].set_aspect('equal')
-    snaps = []
-
-    sim = simulation
-    if trim_x:
-        xar = np.arange(0,sim.domain.Nx)*sim.domain.dx
-    else:
-        xar = np.arange(0,sim.domain.Ld)*sim.domain.dx
-    yar = (np.arange(0,sim.ny)*sim.domain.dy).reshape(-1,1)
-    zar = (np.arange(0,sim.nz_tot)*sim.domain.dz).reshape(-1,1)
-
-
-    for fname in bins:
-        print(fname)
-        u,v,w,T,pcon = routines.readBinary(fname, simulation=sim)
-        if trim_x:
-            pcon = pcon[:-2,:,:, n_pcon]
-        else:
-            pcon = pcon[:,:,:, n_pcon]
-
-        #-------
-        # To take care of slightly negative or zero concentrations for plotting purposes
-        pcon[ pcon==0 ] += 1.e-20
-        pcon = abs(pcon)
-        #-------
-
-        flat1 = xz_func(pcon)
-        axes[1].set_xlabel('x')
-        axes[1].set_ylabel('z')
-        a2 = -zar
-        a1 = xar
-        im1 = axes[1].pcolormesh(a1, a2, flat1.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1))
-
-        flat2 = xy_func(pcon)
-        axes[0].set_xlabel('x')
-        axes[0].set_ylabel('y')
-        a1 = xar
-        a2 = yar
-        im2 = axes[0].pcolormesh(a1, a2, flat2.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1))
-        snaps.append([im1, im2])
+            raise Exception
 
     animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True, repeat_delay=300)
 

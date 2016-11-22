@@ -1,17 +1,31 @@
-from .decorators import autoargs as _auto
 
 class Simulation(object):
     """class for simulation parameters"""
-    def __init__(self, domain=None, dt=None, timelength=None, u_scale=None, inversion_depth=None, **kwargs):
-        self.domain = domain
-        self.dt = dt
-        self.timelength = timelength
-        self.u_scale = u_scale
-        self.inversion_depth = inversion_depth
-        self.__dict__.update(kwargs)
+    def __init__(self, from_file=None, domain=None, timelength=None, u_scale=None, inversion_depth=None, **kwargs):
+        #------------
+        # Start simulation from param.nml file
+        if from_file!=None:
+            if isinstance(from_file, str):
+                aux = sim_from_file(from_file)
+                self.__dict__.update(vars(aux))
+                return
+            else:
+                raise
+        #------------
+        #------------
+        # Start simulation from call arguments
+        else:
+            self.domain = domain
+            self.timelength = timelength
+            self.u_scale = u_scale
+            self.inversion_depth = inversion_depth
+            self.__dict__.update(kwargs)
+        #------------
 
-    def check(self, nproc=None):
-        """Check characteristics of the simulation
+
+    def check(self, full=True):
+        """
+        Check important characteristics of the simulation
         """
         CFL_x=self.u_scale*self.dt/self.domain.dx
         print('CFL (u_scale*dt/dx)          : {:.2e}'.format(CFL_x))
@@ -22,19 +36,25 @@ class Simulation(object):
             if self.domain.Nz%i == 0:
                 divs.append(i)
         print('Nz = {:03d} and is divisible by : {}'.format(self.domain.Nz, divs))
-
+        if full:
+            print('Coriolis timescale           : {:1.1e} timesteps'.format(int(1./self.freq_coriolis/self.dt)))
 
     def __str__(self):
         buff='Simulation Parameters\n'+ '-'*21
-        buff+='\ndt: {} s'.format(self.dt)
+        buff += 'Endless    : {}\n'.format(self.flag_endless)
+        buff += 'dt:        : {} s'.format(self.dt)
         buff+= self.domain.__str__()
         return buff
 
     __repr__ = __str__
 
 
-def simulation(namelist, tlength_from_ke=True):
-    from .utils import paramParser
+
+def sim_from_file(namelist, tlength_from_ke=True, check_ke_file=None):
+    """
+    Reads and parses namelist and then calls Simulation class
+    """
+    from ..utils import paramParser
     from .dmClass import domain as Dom
     params = paramParser(namelist)
     dmn = Dom(nx=params['nx'], ny=params['ny'], nz_tot=params['nz_tot'],
@@ -43,16 +63,29 @@ def simulation(namelist, tlength_from_ke=True):
     
     if tlength_from_ke:
         from os import path
-        #import numpy as _np
         import pandas as _pd
-        kefile = path.join(path.dirname(namelist), '../check_ke.out')
-        kefile2 = path.join(path.dirname(namelist), 'output/check_ke.out')
-        print('opening',kefile)
+
+        nml_dir = path.dirname(namelist)
+        if check_ke_file:
+            kefile = check_ke_file
+        else:
+            atmpt = path.join(nml_dir, 'check_ke.out')
+            if path.isfile(atmpt):
+                kefile = atmpt
+            else:
+                atmpt = path.join(nml_dir, '../check_ke.out')
+                if path.isfile(atmpt):
+                    kefile = atmpt
+                else:
+                    atmpt = path.join(nml_dir, 'output/check_ke.out')
+                    if path.isfile(atmpt):
+                        kefile = atmpt
+                    else:
+                        raise
+        
+        print('opening', kefile)
         try:
-            #kearray = _np.loadtxt(kefile)
             kearray = _pd.read_csv(kefile, delim_whitespace=True, squeeze=True, index_col=0, header=None)
-            #kelast = int(kearray[-1,0]+1)
-            #kecount = len(kearray[:,0])
             kelast = kearray.index[-1]
             kecount = len(kearray.index)
             if kelast == kecount:
@@ -65,7 +98,7 @@ def simulation(namelist, tlength_from_ke=True):
             print("Coulndn't open check_ke.out.")
             tlength = params['nsteps']
     else:
-        print('Warining: getting length solely from param.nml, which can be flawed.')
+        print('Warning: getting length solely from param.nml, which can be flawed.')
         tlength = params['nsteps']
 
     out = Simulation(domain=dmn,
@@ -75,12 +108,5 @@ def simulation(namelist, tlength_from_ke=True):
             inversion_depth=params['z_i'],
             T_scale=params['t_scale'],
             **params)
-#            pcon_flag=params['pcon_flag'],
-#            s_flag=params['s_flag'],
-#            ix_src=params['ix_src'],
-#            iy_src=params['iy_src'],
-#            iz_src=params['iz_src'],
-#            vel_settling=params['vel_settling'],
-#            stokes_flag=['stokes_flag'])
 
     return out
