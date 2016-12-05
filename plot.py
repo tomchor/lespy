@@ -57,7 +57,83 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True,
     return dat
 
 
-def pcon_2D_animation(bins, outname=None, which='xz', simulation=None,
+
+def pcon_2D_animation(results, outname=None, which='xy', simulation=None, ax1=None, ax2=None, levels=None):
+    """
+    Prints 2D animations from binary data for oil concentrations
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import matplotlib.animation as anim
+    from matplotlib import colors
+    from matplotlib import cm
+    from . import routines
+    from . import utils
+
+    fig = plt.figure()
+    snaps = []
+    sim = simulation
+    cmap_con = cm.get_cmap("jet")
+
+
+    if levels==None:
+        level_bd=(-10,1)
+        levels_con = np.arange(level_bd[0],level_bd[1]+0.1,0.1)
+        levels_con = np.logspace(level_bd[0], level_bd[1], 30)
+        print(levels_con)
+
+    if simulation:
+        if which == 'xy':
+            ax1p = np.arange(0, results.shape[1]*sim.domain.dx, sim.domain.dx)
+            ax2p = np.arange(0, results.shape[2]*sim.domain.dy, sim.domain.dy)
+        elif which == 'xz':
+            ax1p = np.arange(0, results.shape[1]*sim.domain.dx, sim.domain.dx)
+            ax2p = np.arange(0, results.shape[2]*sim.domain.dz, sim.domain.dz)
+    else:
+        ax1p = np.arange(0, results.shape[1])
+        ax2p = np.arange(0, results.shape[2])
+
+    if ax1 is None:
+        ax1 = ax1p
+    if ax2 is None:
+        ax2 = ax2p
+    X2, X1 = np.meshgrid(ax2, ax1)
+
+    for i, plane in enumerate(results):
+        print(i)
+
+        #-------
+        # To take care of slightly negative or zero concentrations for plotting purposes
+#        results[ results==0 ] += 1.e-20
+#        results = abs(results)
+        #-------
+
+        if which=='xz':
+            plt.xlabel('x')
+            plt.ylabel('z')
+        elif which=='xy':
+            plt.xlabel('x')
+            plt.ylabel('y')
+
+        aux = plt.contourf(X1, X2, plane, levels_con, norm=colors.LogNorm(vmin=1.e-4, vmax=1.e-1), cmap=cmap_con)
+
+#        if levels==None:
+#            cbar = plt.colorbar(aux, ticks = np.arange(level_bd[0], level_bd[1]+1, 1), cax=cbar_ax)
+
+
+        snaps.append(aux.collections)
+
+    animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True, repeat_delay=300)
+
+    if outname:
+        animated.save(outname)
+    else:
+        return animated
+
+
+
+
+def pcon_2D_animation_old(bins, outname=None, which='xz', simulation=None,
         n_pcon=0, func=lambda x: x.mean(axis=1), trim_x=True):
     """
     Prints 2D animations from binary data for oil concentrations
@@ -67,6 +143,7 @@ def pcon_2D_animation(bins, outname=None, which='xz', simulation=None,
     import matplotlib.animation as anim
     from matplotlib import colors
     from . import routines
+    from . import utils
 
     fig = plt.figure()
     snaps = []
@@ -82,6 +159,8 @@ def pcon_2D_animation(bins, outname=None, which='xz', simulation=None,
 
     for fname in bins:
         print(fname)
+        ndtime = utils.nameParser(fname)
+
         u,v,w,T,pcon = routines.readBinary(fname, simulation=sim)
         if trim_x:
             pcon = pcon[:-2,:,:, n_pcon]
@@ -109,8 +188,8 @@ def pcon_2D_animation(bins, outname=None, which='xz', simulation=None,
             a1=range(flat.shape[0])
             a2=range(flat.shape[1])
         aux = plt.pcolormesh(a1, a2, flat.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1))
+
         snaps.append([aux])
-        #snaps.append(( plt.pcolormesh(a1, a2, flat.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1)), ))
 
 
     animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True, repeat_delay=300)
@@ -134,7 +213,7 @@ def pcon_side_animation(bins, outname=None, simulation=None,
     from . import routines
 
     #fig = plt.figure()
-    fig, axes = plt.subplots(2, sharex=True, figsize=(6,11))
+    fig, axes = plt.subplots(2, sharex=True, figsize=(6,12))
     fig.tight_layout()
     axes[0].set_aspect('equal')
     axes[1].set_aspect('equal')

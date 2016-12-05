@@ -27,7 +27,7 @@ def paramParser(nmlpath):
         #----------
 
     else:
-        print('Path {} doesnt exist'.format(nmlpath))
+        raise ValueError('Path {} doesnt exist'.format(nmlpath))
 
     #----------
     # lines with % are not supported (type character resolver)
@@ -46,3 +46,26 @@ def paramParser(nmlpath):
     for key in groups.keys():
         params.update(groups[key])
     return params
+
+
+
+
+def nameParser(fname):
+    """
+    Parser that gets name of output file and returns time, endless patch location and etc
+    """
+    from os import path
+    fname = path.basename(fname)
+
+    if 'vel_sc' in fname:
+        #ndtime = fname.split('vel_sc')[1].split('.out')[0]
+        ndtime = fname.strip('vel_sc').strip('.out')
+        return int(ndtime)
+
+    if 'con_tt' in fname:
+        import re
+        numbers = re.split('[a-z. +_]',fname)
+        ndtime, pcon_n, row, col = [ int(el) for el in numbers if el is not '' ]
+        return ndtime, pcon_n, row, col
+
+

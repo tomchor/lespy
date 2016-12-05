@@ -41,7 +41,7 @@ class Simulation(object):
 
     def __str__(self):
         buff='Simulation Parameters\n'+ '-'*21
-        buff += 'Endless    : {}\n'.format(self.flag_endless)
+        buff += '\nEndless    : {}\n'.format(self.flag_endless)
         buff += 'dt:        : {} s'.format(self.dt)
         buff+= self.domain.__str__()
         return buff
@@ -110,3 +110,97 @@ def sim_from_file(namelist, tlength_from_ke=True, check_ke_file=None):
             **params)
 
     return out
+
+
+class Output(object):
+    """
+    """
+    def __init__(self, oppath, basename=False):
+        """
+        """
+        from os import path
+        from glob import glob
+        import pandas as pd
+        from .. import utils
+
+        opfiles = pd.DataFrame(columns=['vel_sc', 'con_tt'])
+
+        if path.isfile(oppath):
+            oppath = path.dirname(oppath)
+        elif path.isdir(oppath):
+            pass
+        else:
+            raise Exception
+
+        vel_sc = sorted(glob(path.join(oppath, 'vel_sc*out')))
+        for fname in vel_sc:
+            ndtime = utils.nameParser(fname)
+            opfiles.loc[ndtime, 'vel_sc'] = fname
+
+
+        con_tt = sorted(glob(path.join(oppath, 'con_tt*out')))
+        if basename:
+            con_tt = map(path.basename, con_tt)
+        for fname in con_tt:
+            ndtime, ncon, row, col = utils.nameParser(fname)
+
+            if ndtime not in opfiles.index:
+                opfiles.loc[ndtime, 'con_tt'] = [fname]
+            else:
+                if isinstance(opfiles.loc[ndtime, 'con_tt'], str):
+                    opfiles.loc[ndtime, 'con_tt'] = [ opfiles.loc[ndtime, 'con_tt'], fname ]
+                elif isinstance(opfiles.loc[ndtime, 'con_tt'], list):
+                    opfiles.loc[ndtime, 'con_tt'].append(fname)
+                else:
+                    opfiles.loc[ndtime, 'con_tt'] = [fname]
+
+        self.df = opfiles
+
+
+
+    def put_together(self, t_ini=0, t_end=None, simulation=None):
+        """Puts together ENDLESS patches
+        """
+        from .. import utils, routines
+        import numpy as np
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError
+
+        if t_end is None:
+            cons = self.df.loc[t_ini:].con_tt.dropna()
+        else:
+            cons = self.df.loc[t_ini:t_end].con_tt.dropna()
+
+        rows = []
+        cols = []
+        for patches in cons:
+            for patch in patches:
+                ndtime, ncon, row, col = utils.nameParser(patch)
+                rows.append(row)
+                cols.append(col)
+        delta_rows = max(rows) - min(rows) + 1
+        delta_cols = max(cols) - min(cols) + 1
+
+        pcons = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot, sim.n_con), np.nan)
+        for i, ndtime in enumerate(cons.index):
+            print(i, ndtime)
+            for patch in cons.loc[ndtime]:
+                ndtime, ncon, row, col = utils.nameParser(patch)
+                con = routines.readBinary(patch, simulation=sim)
+
+                min_yj = (row - min(rows))*sim.ny
+                max_yj = min_yj + sim.ny
+
+                min_xi = (col - min(cols))*sim.nx
+                max_xi = min_xi + sim.nx
+
+                pcons[i, min_xi:max_xi, min_yj:max_yj, :, :] = con[:sim.nx,:,:,:]
+        #pcons = pcons[:,::-1,::-1,:,:]
+
+        return pcons
+
+
+

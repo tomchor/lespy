@@ -53,16 +53,22 @@ def postProcess2D(model_outputdir, t_ini=100000, t_end=None, simulation=None, re
 def readBinary(fname, simulation=None):
     """Reads a binary file according to the simulation object passed
     """
-    from . import read_instant as read
+    from os import path
+    from . import read_instant3 as read
     if isinstance(simulation, str):
         from ..simClass import simulation as Sim
         simulation = Sim(simulation)
 
     sim = simulation
-    if simulation.s_flag and simulation.pcon_flag:
-        u,v,w,T,pcon,depo,real_depo,ustar_avg,psurf_flux, psurf_flux_depo=read.read_vel_pcon(fname, sim.nx, sim.ny, sim.nz_tot, sim.n_con)
-        return u,v,w,T,pcon
 
+    #if simulation.s_flag and simulation.pcon_flag:
+    if path.basename(fname).startswith('con_tt'):
+        #u,v,w,T,pcon,depo,real_depo,ustar_avg,psurf_flux, psurf_flux_depo=read.read_vel_pcon(fname, sim.nx, sim.ny, sim.nz_tot, sim.n_con)
+        u,v,w,T,pcon = read.read_binary(fname, sim.nx, sim.ny, sim.nz_tot, sim.n_con, sim.s_flag, sim.pcon_flag, sim.flag_endless, 'con_tt')
+        return pcon
+
+    elif simulation.s_flag and not simulation.pcon_flag:
+        pass
 
     return
 
