@@ -58,7 +58,8 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True,
 
 
 
-def pcon_2D_animation(results, outname=None, which='xy', simulation=None, ax1=None, ax2=None, levels=None):
+def pcon_2D_animation(results, outname=None, which='xy', simulation=None, ax1=None, ax2=None, levels=None,
+        logscale=True, timelist=None):
     """
     Prints 2D animations from binary data for oil concentrations
     """
@@ -75,12 +76,15 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, ax1=No
     sim = simulation
     cmap_con = cm.get_cmap("jet")
 
+    if not timelist:
+        timelist = results.shape[0]
 
     if levels==None:
-        level_bd=(-10,1)
-        levels_con = np.arange(level_bd[0],level_bd[1]+0.1,0.1)
-        levels_con = np.logspace(level_bd[0], level_bd[1], 30)
-        print(levels_con)
+        if logscale:
+            level_bd=(-3,1)
+            levels_con = np.arange(level_bd[0],level_bd[1],0.4)
+            ticklabels = np.power(10.0, levels_con)
+            formatting_fun = np.vectorize(lambda f: format(f, '4.0e'))
 
     if simulation:
         if which == 'xy':
@@ -99,36 +103,118 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, ax1=No
         ax2 = ax2p
     X2, X1 = np.meshgrid(ax2, ax1)
 
-    for i, plane in enumerate(results):
+    #-------
+    # To take care of slightly negative or zero concentrations for plotting purposes
+    results[ results==0 ] += 1.e-20
+    results = abs(results)
+    for i, plane in zip(timelist, results):
         print(i)
 
         #-------
-        # To take care of slightly negative or zero concentrations for plotting purposes
-#        results[ results==0 ] += 1.e-20
-#        results = abs(results)
-        #-------
 
         if which=='xz':
-            plt.xlabel('x')
-            plt.ylabel('z')
+            plt.xlabel('$\mathbf{x(m)}$')
+            plt.ylabel('$\mathbf{z(m)}$')
         elif which=='xy':
-            plt.xlabel('x')
-            plt.ylabel('y')
+            plt.xlabel('$\mathbf{x(m)}$')
+            plt.ylabel('$\mathbf{y(m)}$')
 
-        aux = plt.contourf(X1, X2, plane, levels_con, norm=colors.LogNorm(vmin=1.e-4, vmax=1.e-1), cmap=cmap_con)
+        if logscale:
+            plane_log = np.log10(plane)
+        else:
+            plane_log = plane
+        plt.tight_layout()
+        aux = plt.contourf(X1, X2, plane_log, levels_con, cmap=cmap_con, extend='both')
+        title = aux.ax.annotate(i, (1000,-30), annotation_clip=False)
 
-#        if levels==None:
-#            cbar = plt.colorbar(aux, ticks = np.arange(level_bd[0], level_bd[1]+1, 1), cax=cbar_ax)
-
-
+        aux.collections.append(title)
         snaps.append(aux.collections)
 
-    animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True, repeat_delay=300)
+    animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True)
+    cbar = plt.colorbar(aux, ticks = levels_con, extend='both')
+    cbar.ax.set_yticklabels(formatting_fun(ticklabels))
 
     if outname:
-        animated.save(outname)
+        animated.save(outname, bitrate=-1, dpi=120)
     else:
         return animated
+
+
+
+
+def plane(plane, outname=None, which='xy', simulation=None, ax1=None, ax2=None, levels=None, logscale=True):
+    """
+    Prints 2D animations from binary data for oil concentrations
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import matplotlib.animation as anim
+    from matplotlib import colors
+    from matplotlib import cm
+    from . import routines
+    from . import utils
+
+    fig = plt.figure()
+    snaps = []
+    sim = simulation
+    cmap_con = cm.get_cmap("jet")
+
+
+    if levels==None:
+        if logscale:
+            level_bd=(-3,1)
+            levels_con = np.arange(level_bd[0],level_bd[1],0.4)
+            ticklabels = np.power(10.0, levels_con)
+            formatting_fun = np.vectorize(lambda f: format(f, '4.0e'))
+        else:
+            level_bd=(1e-6,1.)
+            levels_con = np.arange(level_bd[0],level_bd[1],0.3)
+#        levels_con = np.logspace(level_bd[0], level_bd[1], 30)
+
+    if simulation:
+        if which == 'xy':
+            ax1p = np.arange(0, plane.shape[0]*sim.domain.dx, sim.domain.dx)
+            ax2p = np.arange(0, plane.shape[1]*sim.domain.dy, sim.domain.dy)
+        elif which == 'xz':
+            ax1p = np.arange(0, plane.shape[0]*sim.domain.dx, sim.domain.dx)
+            ax2p = np.arange(0, plane.shape[1]*sim.domain.dz, sim.domain.dz)
+    else:
+        ax1p = np.arange(0, plane.shape[0])
+        ax2p = np.arange(0, plane.shape[1])
+
+    if ax1 is None:
+        ax1 = ax1p
+    if ax2 is None:
+        ax2 = ax2p
+    X2, X1 = np.meshgrid(ax2, ax1)
+
+    plane = np.ma.array(plane, mask=plane==np.nan)
+    #-------
+    # To take care of slightly negative or zero concentrations for plotting purposes
+    plane[ plane==0 ] += 1.e-20
+    plane = abs(plane)
+    #-------
+
+    if which=='xz':
+        plt.xlabel('$\mathbf{x(m)}$')
+        plt.ylabel('$\mathbf{z(m)}$')
+    elif which=='xy':
+        plt.xlabel('$\mathbf{x(m)}$')
+        plt.ylabel('$\mathbf{y(m)}$')
+
+    if logscale:
+        plane_log = np.log10(plane)
+    else:
+        plane_log = plane
+
+    aux = plt.contourf(X1, X2, plane_log, levels_con, cmap=cmap_con, extend='both')
+    cbar = plt.colorbar(aux, ticks = levels_con, extend='both')
+    cbar.ax.set_yticklabels(formatting_fun(ticklabels))
+
+    if outname:
+        return plt.savefig(outname, bbox_inches='tight')
+    else:
+        return aux
 
 
 

@@ -130,6 +130,7 @@ class Output(object):
         elif path.isdir(oppath):
             pass
         else:
+            print('No wildcards')
             raise Exception
 
         vel_sc = sorted(glob(path.join(oppath, 'vel_sc*out')))
@@ -158,6 +159,77 @@ class Output(object):
 
 
 
+    def compose_pcon(self, t_ini=0, t_end=None, simulation=None):
+        """Puts together ENDLESS patches
+        """
+        from .. import utils, routines
+        import numpy as np
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError
+
+        labels = ['con_tt', 'vel_sc']
+
+        #--------------
+        # Adjust intervals
+        if t_end is None:
+            cons = self.df.loc[t_ini:, labels].dropna(axis=1, how='all')
+        else:
+            cons = self.df.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+        #--------------
+
+        if len(cons.columns) not in [1,2]:
+            print('Columns are:', cons.columns)
+            raise ValueError('Should be only con_tt or vel_sc left')
+
+        elif (cons.columns.tolist() == ['con_tt']) or (cons.columns.tolist() == ['con_tt', 'vel_sc']):
+            cons = cons.con_tt.dropna()
+            rows = []
+            cols = []
+            for patches in cons:
+                for patch in patches:
+                    ndtime, ncon, row, col = utils.nameParser(patch)
+                    rows.append(row)
+                    cols.append(col)
+            delta_rows = max(rows) - min(rows) + 1
+            delta_cols = max(cols) - min(cols) + 1
+
+            pcons = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot, sim.n_con), np.nan)
+            for i, ndtime in enumerate(cons.index):
+                print(i, ndtime)
+                for patch in cons.loc[ndtime]:
+                    ndtime, ncon, row, col = utils.nameParser(patch)
+                    con = routines.readBinary(patch, simulation=sim)
+    
+                    min_yj = (row - min(rows))*sim.ny
+                    max_yj = min_yj + sim.ny
+
+                    min_xi = (col - min(cols))*sim.nx
+                    max_xi = min_xi + sim.nx
+
+                    pcons[i, min_xi:max_xi, min_yj:max_yj, :, :] = con[:sim.nx,:,:,:]
+
+        #---------
+        # In this case there's no endless!
+        elif cons.columns.tolist() == ['vel_sc']:
+            cons = cons.vel_sc
+            pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan)
+            for i, fname in enumerate(cons):
+                print(i, cons.index[i])
+                u,v,w,T,con = routines.readBinary(fname, simulation=sim)
+
+                pcons[i,:,:,:,:] = con[:sim.nx,:,:,:]
+        #---------
+
+        else:
+            print(cons.columns.tolist())
+
+        return pcons
+
+
+
     def put_together(self, t_ini=0, t_end=None, simulation=None):
         """Puts together ENDLESS patches
         """
@@ -169,37 +241,82 @@ class Output(object):
         else:
             raise ValueError
 
+        labels = ['con_tt', 'vel_sc']
+
+        #--------------
+        # Adjust intervals
         if t_end is None:
-            cons = self.df.loc[t_ini:].con_tt.dropna()
+            cons = self.df.loc[t_ini:, labels].dropna(axis=1, how='all')
         else:
-            cons = self.df.loc[t_ini:t_end].con_tt.dropna()
+            cons = self.df.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+        #--------------
 
-        rows = []
-        cols = []
-        for patches in cons:
-            for patch in patches:
-                ndtime, ncon, row, col = utils.nameParser(patch)
-                rows.append(row)
-                cols.append(col)
-        delta_rows = max(rows) - min(rows) + 1
-        delta_cols = max(cols) - min(cols) + 1
+        #--------------
+        # Create output matrix
+        if 'con_tt' in cons.columns:
+            ttcons = cons['con_tt'].dropna(axis=0, how='all')
+            rows = []
+            cols = []
+            for patches in ttcons:
+                print(patches)
+                for patch in patches:
+                    ndtime, ncon, row, col = utils.nameParser(patch)
+                    rows.append(row)
+                    cols.append(col)
+            delta_rows = max(rows) - min(rows) + 1
+            delta_cols = max(cols) - min(cols) + 1
+            pcons = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot, sim.n_con), np.nan)
+        else:
+            pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan)
+        #--------------
 
-        pcons = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot, sim.n_con), np.nan)
-        for i, ndtime in enumerate(cons.index):
-            print(i, ndtime)
-            for patch in cons.loc[ndtime]:
-                ndtime, ncon, row, col = utils.nameParser(patch)
-                con = routines.readBinary(patch, simulation=sim)
+        if 'vel_sc' in cons.columns:
+            sccons = cons['con_tt'].dropna(axis=0, how='all')
 
-                min_yj = (row - min(rows))*sim.ny
-                max_yj = min_yj + sim.ny
+            for i, ndtime in enumerate(cons.index):
+                if ndtime not in sccons.index:
+                    continue
+                print(i, ndtime)
+                for patch in sccons.loc[ndtime]:
+                    ndtime, ncon, row, col = utils.nameParser(patch)
+                    con = routines.readBinary(patch, simulation=sim)
 
-                min_xi = (col - min(cols))*sim.nx
-                max_xi = min_xi + sim.nx
+                    min_yj = (row - min(rows))*sim.ny
+                    max_yj = min_yj + sim.ny
 
-                pcons[i, min_xi:max_xi, min_yj:max_yj, :, :] = con[:sim.nx,:,:,:]
-        #pcons = pcons[:,::-1,::-1,:,:]
+                    min_xi = (col - min(cols))*sim.nx
+                    max_xi = min_xi + sim.nx
 
+                    pcons[i, min_xi:max_xi, min_yj:max_yj, :, :] = con[:sim.nx,:,:,:]
+
+        if 'con_tt' in cons.columns:
+            ttcons = cons['con_tt'].dropna(axis=0, how='all')
+            rows = []
+            cols = []
+            for patches in ttcons:
+                print(patches)
+                for patch in patches:
+                    ndtime, ncon, row, col = utils.nameParser(patch)
+                    rows.append(row)
+                    cols.append(col)
+            delta_rows = max(rows) - min(rows) + 1
+            delta_cols = max(cols) - min(cols) + 1
+
+            for i, ndtime in enumerate(cons.index):
+                if ndtime not in tcons.index:
+                    continue
+                print(i, ndtime)
+                for patch in ttcons.loc[ndtime]:
+                    ndtime, ncon, row, col = utils.nameParser(patch)
+                    con = routines.readBinary(patch, simulation=sim)
+
+                    min_yj = (row - min(rows))*sim.ny
+                    max_yj = min_yj + sim.ny
+
+                    min_xi = (col - min(cols))*sim.nx
+                    max_xi = min_xi + sim.nx
+
+                    pcons[i, min_xi:max_xi, min_yj:max_yj, :, :] = con[:sim.nx,:,:,:]
         return pcons
 
 

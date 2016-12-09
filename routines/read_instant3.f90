@@ -48,7 +48,9 @@ IF (flag_endless) THEN
 ELSE
     print*,'Reading vel_sc file'
     IF (s_flag .AND. pcon_flag) THEN
-        read(12) u_tot(:, :, 1:nz_tot), v_tot(:, :, 1:nz_tot), w_tot(:, :, 1:nz_tot), &
+        print*,'readinf long one'
+        print*,nx,ny,nz_tot, n_con
+        read(12) u_tot(:, :, 1:nz_tot), v_tot(:, :, 1:nz_tot), w_tot(:,:,:), &
              theta_tot(:,:,1:nz_tot), PCon_tot(:,:,1:nz_tot,:), &
              deposition(:,:), Real_dep(:,:), ustar_avg(:,:), &
              P_surf_flux(:,:), P_surf_flux_dep(:,:)
