@@ -48,8 +48,6 @@ def paramParser(nmlpath):
     return params
 
 
-
-
 def nameParser(fname):
     """
     Parser that gets name of output file and returns time, endless patch location and etc
@@ -58,8 +56,15 @@ def nameParser(fname):
     fname = path.basename(fname)
 
     if 'vel_sc' in fname:
-        #ndtime = fname.split('vel_sc')[1].split('.out')[0]
         ndtime = fname.strip('vel_sc').strip('.out')
+        return int(ndtime)
+
+    if 'vel_t' in fname:
+        ndtime = fname.strip('vel_t').strip('.out')
+        return int(ndtime)
+
+    if 'temp_t' in fname:
+        ndtime = fname.strip('temp_t').strip('.out')
         return int(ndtime)
 
     if 'con_tt' in fname:
@@ -69,3 +74,45 @@ def nameParser(fname):
         return ndtime, pcon_n, row, col
 
 
+def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
+    """
+    Auxiliar function to get plitting limits for plane and pcon_2D_animation
+    """
+    import numpy as np
+
+    #-------
+    nseps = nbins+1
+    if levels==None:
+        if logscale:
+            if not clim:
+                logarray = np.log10(np.abs(array))
+                #clim = (np.nanmin(logarray), np.nanmax(logarray))
+                clim = (np.nanpercentile(logarray, 50), np.nanpercentile(logarray, 95))
+            levels_con = np.linspace(clim[0], clim[1], nseps)
+            ticklabels = np.power(10.0, levels_con)
+        else:
+            if not clim:
+                clim=(array.min(), array.max())
+            levels_con = np.linspace(clim[0],clim[1], nseps)
+            ticklabels = levels_con
+    #-------
+
+    #-------
+    # If levels are given, result is straightfoward
+    else:
+        levels_con = levels
+        if logscale:
+            ticklabels = np.power(10.0, levels_con)
+        else:
+            ticklabels = levels_con
+    #-------
+    
+    #-------
+    # The formatting can be done differently
+    if logscale:
+        formatting = np.vectorize(lambda f: format(f, '4.0e'))
+    else:
+        formatting = np.vectorize(lambda f: format(f, 'G'))
+    #-------
+
+    return ticklabels, formatting, levels_con

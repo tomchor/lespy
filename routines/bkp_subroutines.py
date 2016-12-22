@@ -104,7 +104,7 @@ def readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=Non
     #---------
     
 
-def readBinary2(fname, simulation=None, domain=None, n_con=None):
+def readBinary2(fname, simulation=None, domain=None, engine='fortran', n_con=None):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -113,32 +113,26 @@ def readBinary2(fname, simulation=None, domain=None, n_con=None):
     from os import path
     from .. import Simulation
     import numpy as np
+    from struct import unpack, error
 
     if isinstance(simulation, str):
         from ..simClass import Simulation as Sim
         simulation = Sim(simulation)
 
+    u,v,w,T,pcon = [None]*5
+
     #---------
-    # Trying to be general
-    if simulation!=None:
+    # Dealing with pre-requesites. Using only domain is more general
+    if (simulation==None) and (domain==None):
+        domain = Simulation(path.dirname(path.abspath(fname))).domain
+        sim=None
+    elif (simulation==None) and (domain!=None):
+        sim=None
+    elif (simulation!=None) and (domain==None):
         sim = simulation
         domain = sim.domain
     else:
-        if domain==None:
-            sim = Simulation(path.dirname(path.abspath(fname)))
-            domain = sim.domain
-        else:
-            sim = Simulation(domain=domain, n_con=n_con)
-    #---------
-
-    #---------
-    # Useful for later. Might as well do it just once here
-    u,v,w,T,pcon = [None]*5
-    u_nd = domain.ld*domain.ny*domain.nz_tot
-    if n_con:
-        p_nd = u_nd*n_con
-    else:
-        p_nd = u_nd*sim.n_con
+        sim = simulation
     #---------
 
     #--------------
@@ -147,73 +141,52 @@ def readBinary2(fname, simulation=None, domain=None, n_con=None):
     bfile.read(4)
     #--------------
     
-    #---------
-    # Straightforward
     if path.basename(fname).startswith('con_tt'):
-        pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.ld, domain.ny, domain.nz_tot, sim.n_con), order='F')
-    #---------
+        p_nd = domain.ld*domain.ny*domain.nz_tot*sim.n_con
+        pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.ld, domain.ny, domain.nz_tot, sim.n_cin), order='F')
+        return pcon
     
-    #---------
-    # Straightforward
-    elif path.basename(fname).startswith('temp_t'):
-        T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-    #---------
-
-    #---------
-    # Straightforward
-    elif path.basename(fname).startswith('vel_t'):
-        u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-    #---------
-
-    #---------
-    # Here lies the problem! The same file name for a bunch of formats! (should consider change)
     elif path.basename(fname).startswith('vel_sc'):
-        #---------
-        # Every vel_sc file has at least u,v,w, so we start with that
+        u_nd = domain.ld*domain.ny*domain.nz_tot
         u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
         v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
         w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        #---------
 
-        #---------
-        # If the scalar flag is on, means temperature is output
-        # It's very unlikely that this flag is on in the beginning of a simnulation and
-        # off in other parts, so we won't try to correct for that
-        if sim.s_flag:
-            T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        #---------
+        if sim!=None:
+            if sim.s_flag and sim.pcon_flag:
+                p_nd = domain.ld*domain.ny*domain.nz_tot*sim.n_con
+                T = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.ld, sim.ny, sim.nz_tot), order='F')
+                pcon = np.array(unpack('d'*p_nd, bfile.read(8*p_nd))).reshape((domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
+                return u,v,w,T,pcon
 
-        #---------
-        # Finally, if the pcon_flag is on, we try to read the pcon field. This flag might be off
-        # on the beginning of the vel_sc outputs and then on when pcon is released, so we do it as a try clause
-        if sim.pcon_flag:
+            elif simulation.s_flag and (not simulation.pcon_flag):
+                T = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.ld, sim.ny, sim.nz_tot), order='F')
+                return u,v,w,T
+    
+            elif (not simulation.s_flag) and (not simulation.pcon_flag):
+                return u,v,w
+
+            elif (not simulation.s_flag) and simulation.pcon_flag:
+                p_nd = sim.domain.Ld*sim.ny*sim.nz_tot*sim.n_con
+                pcon = np.array(unpack('d'*p_nd, bfile.read(8*p_nd))).reshape((domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
+                return u,v,w,pcon
+
+        #--------
+        # Most quick-to-lauch option: only domain object is available so kind of guess
+        else:
             try:
-                pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.ld, domain.ny, domain.nz_tot, sim.n_con), order='F')
+                T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
+                if n_con:
+                    p_nd = domain.ld*domain.ny*domain.nz_tot*n_con
+                    pcon = np.array(unpack('d'*p_nd, bfile.read(8*p_nd))).reshape((domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
+                    return u,v,w,T,pcon
+                else:
+                    return u,v,w,T
             except ValueError:
-                pass
-        #---------
-    #---------
+                return u,v,w
+        #--------
 
-    #---------
-    # Now we set up the output and re-scale one by one of they exist
-    outlist = []
-    if isinstance(u, np.ndarray):
-        u *= sim.u_scale
-        v *= sim.u_scale
-        w *= sim.u_scale
-        outlist+=[u,v,w]
-    if isinstance(T, np.ndarray):
-        T = 2.*sim.t_init - T*sim.t_scale
-        outlist.append(T)
-    if isinstance(pcon, np.ndarray):
-        pcon *= sim.pcon_scale
-        outlist.append(pcon)
-    #---------
-
-    #---------
-    # We simplify if there's only one output
+    outlist = [ el for el in [u,v,w,T,pcon] if el != None ]
     if len(outlist)==1:
         return outlist[0]
     else:
