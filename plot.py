@@ -3,7 +3,19 @@ from matplotlib import animation as anim
 
 def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True,
         normalize=False, plot_kwargs={}, means=True, variances=True, covariances=False):
-    """Plots important averages from the 2D outputs
+    """
+    Plots important averages from the 2D outputs
+
+    Parameters
+    ----------
+    outputs: string
+        output directory where the averages are.
+    t_ini: int
+        timestep to start the average.
+    t_end: int
+        timestep to end the average.
+    savefigs: bool
+        whether or not to save the figs. If false, figs are just shown.
     """
     from . import postProcess2D
     from . import Simulation
@@ -57,12 +69,23 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True,
 
 
 def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title='',
-        clim=[], logscale=True, axes=[], levels=None, timelist=None, **kwargs):
+        clim=[], logscale=True, axes=[], levels=None, timelist=None, aspect='equal', **kwargs):
     """
     Prints 2D animations from binary data for oil concentrations
 
     Each frame is done with the plane() function, and changes to that can be
     passed to plane() with the plane_kw keyword
+
+    Parameters
+    ----------
+    resuts: np.array
+        3D array where first axis is time
+    outname: string
+        path for animation to be saved. If None, animation is returned.
+    which: string
+        either xz or xy. If it's anything else no label will be put and x and y axis will be nodes.
+    simulation: lespy.Simulation
+        simulation from where to retrieve information
     """
     import numpy as np
     import matplotlib.pyplot as plt
@@ -101,13 +124,16 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
 
     #--------
     # Doesnt waste space on the plot and sets aspect ratio to be equal
-    plt.gca().set_aspect('equal', 'datalim')
+    plt.gca().set_aspect(aspect, 'datalim')
     plt.tight_layout()
     #--------
 
+    #--------
+    # Animate and put the colorbar
     animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True)
     cbar = plt.colorbar(aux, ticks = levels_con, extend=None)
     cbar.ax.set_yticklabels(formatting(ticklabels))
+    #--------
 
     if outname:
         animated.save(outname, bitrate=-1, dpi=120)
@@ -193,73 +219,6 @@ def plane(plane, outname=None, which='xy', simulation=None,
     else:
         return aux
 
-
-
-def pcon_2D_animation_old(bins, outname=None, which='xz', simulation=None,
-        n_pcon=0, func=lambda x: x.mean(axis=1), trim_x=True):
-    """
-    Prints 2D animations from binary data for oil concentrations
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import matplotlib.animation as anim
-    from matplotlib import colors
-    from . import routines
-    from . import utils
-
-    fig = plt.figure()
-    snaps = []
-
-    sim = simulation
-    if trim_x:
-        xar = np.arange(0,sim.domain.Nx)*sim.domain.dx
-    else:
-        xar = np.arange(0,sim.domain.Ld)*sim.domain.dx
-    yar = (np.arange(0,sim.ny)*sim.domain.dy).reshape(-1,1)
-    zar = (np.arange(0,sim.nz_tot)*sim.domain.dz).reshape(-1,1)
-
-
-    for fname in bins:
-        print(fname)
-        ndtime = utils.nameParser(fname)
-
-        u,v,w,T,pcon = routines.readBinary(fname, simulation=sim)
-        if trim_x:
-            pcon = pcon[:-2,:,:, n_pcon]
-        else:
-            pcon = pcon[:,:,:, n_pcon]
-
-        #-------
-        # To take care of slightly negative or zero concentrations for plotting purposes
-        pcon[ pcon==0 ] += 1.e-20
-        pcon = abs(pcon)
-        #-------
-
-        flat = func(pcon)
-        if which=='xz':
-            plt.xlabel('x')
-            plt.ylabel('z')
-            a2 = -zar
-            a1 = xar
-        elif which=='xy':
-            plt.xlabel('x')
-            plt.ylabel('y')
-            a1 = xar
-            a2 = yar
-        else:
-            a1=range(flat.shape[0])
-            a2=range(flat.shape[1])
-        aux = plt.pcolormesh(a1, a2, flat.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1))
-
-        snaps.append([aux])
-
-
-    animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True, repeat_delay=300)
-
-    if outname:
-        animated.save(outname)
-    else:
-        return animated
 
 
 def pcon_side_animation(bins, outname=None, simulation=None,
