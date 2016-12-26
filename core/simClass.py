@@ -30,10 +30,10 @@ class Simulation(object):
         CFL_x=self.u_scale*self.dt/self.domain.dx
         print('CFL (u_scale*dt/dx)          : {:.2e}'.format(CFL_x))
         print('dx/dz                        : {:2.1f}\t\t{}'.format(self.domain.dx/self.domain.dz,'-- Should be < 5 in practice'))
-        print('Lx/z_inv                     : {:2.1f}\t\t{}'.format(self.domain.Lx/self.inversion_depth,'-- Should be > 6. At *least* 4.'))
+        print('lx/z_inv                     : {:2.1f}\t\t{}'.format(self.domain.lx/self.inversion_depth,'-- Should be > 6. At *least* 4.'))
         divs = []
         for i in range(2,140):
-            if self.domain.Nz%i == 0:
+            if self.domain.nz%i == 0:
                 divs.append(i)
         print('Nz = {:03d} and is divisible by : {}'.format(self.domain.Nz, divs))
         if full:

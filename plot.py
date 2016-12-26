@@ -1,8 +1,8 @@
 from matplotlib import pyplot as plt
 from matplotlib import animation as anim
 
-def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True,
-        normalize=False, plot_kwargs={}, means=True, variances=True, covariances=False):
+def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation=None, 
+        normalize=False, plot_kwargs={}, means=True, variances=True, covariances=False, theta=False):
     """
     Plots important averages from the 2D outputs
 
@@ -19,8 +19,14 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True,
     """
     from . import postProcess2D
     from . import Simulation
+    from .utils import get_lims
 
-    sim = Simulation(outputs)
+    if simulation:
+        sim = simulation
+    else:
+        sim = Simulation(outputs)
+    t_ini = int(t_ini)
+    t_end = int(t_end)
     dat = postProcess2D(outputs, t_ini=t_ini, t_end=t_end, simulation=sim, return_df=return_df)
 
     if normalize:
@@ -29,41 +35,55 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True,
         dat.iloc[:, :3] = -dat.iloc[:, :3]
 
     if means:
-        xlim=[1.2*dat['<U>/u*'].min(), 1.2*dat['<U>/u*'].max()]
+        xlim = get_lims(dat['<U>/u*'])
         dat.plot(x='<U>/u*', y='z_uv', grid=True, xlim=xlim, **plot_kwargs)
         if savefigs: plt.savefig('U_{!s}-{!s}.png'.format(t_ini, t_end))
     
-        xlim=[1.2*dat['<V>/u*'].min(), 1.2*dat['<V>/u*'].max()]
+        xlim = get_lims(dat['<V>/u*'])
         dat.plot(x='<V>/u*', y='z_uv', grid=True, xlim=xlim, **plot_kwargs)
         if savefigs: plt.savefig('V_{!s}-{!s}.png'.format(t_ini, t_end))
+
+        xlim = get_lims(dat['<W>/u*'])
+        dat.plot(x='<W>/u*', y='z_uv', grid=True, xlim=xlim, **plot_kwargs)
+        if savefigs: plt.savefig('W_{!s}-{!s}.png'.format(t_ini, t_end))
     
     if variances:
-        xlim=[1.2*dat['<u^2>/u*^2'].min(), 1.2*dat['<u^2>/u*^2'].max()]
+        xlim = get_lims(dat['<u^2>/u*^2'])
         dat.plot(x='<u^2>/u*^2', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
         if savefigs: plt.savefig('uu_{!s}-{!s}.png'.format(t_ini, t_end))
     
-        xlim=[1.2*dat['<v^2>/u*^2'].min(), 1.2*dat['<v^2>/u*^2'].max()]
+        xlim = get_lims(dat['<v^2>/u*^2'])
         dat.plot(x='<v^2>/u*^2', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
         if savefigs: plt.savefig('vv_{!s}-{!s}.png'.format(t_ini, t_end))
         
-        xlim=[1.2*dat['<w^2>/u*^2'].min(), 1.2*dat['<w^2>/u*^2'].max()]
+        xlim = get_lims(dat['<w^2>/u*^2'])
         dat.plot(x='<w^2>/u*^2', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
         if savefigs: plt.savefig('ww_{!s}-{!s}.png'.format(t_ini, t_end))
     
     if covariances:
-        xlim=[1.2*dat['<uw>/u*^2'].min(), 1.2*dat['<uw>/u*^2'].max()]
+        xlim = get_lims(dat['<uw>/u*^2'])
         dat.plot(x='<uw>/u*^2', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
-        plt.savefig('uw_{!s}-{!s}.png'.format(t_ini, t_end))
+        if savefigs: plt.savefig('uw_{!s}-{!s}.png'.format(t_ini, t_end))
 
-        xlim=[1.2*dat['<vw>/u*^2'].min(), 1.2*dat['<vw>/u*^2'].max()]
+        xlim = get_lims(dat['<vw>/u*^2'])
         dat.plot(x='<vw>/u*^2', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
-        plt.savefig('vw_{!s}-{!s}.png'.format(t_ini, t_end))
+        if savefigs: plt.savefig('vw_{!s}-{!s}.png'.format(t_ini, t_end))
 
-        xlim=[1.2*dat['<wT>/u*T*'].min(), 1.2*dat['<wT>/u*T*'].max()]
+        xlim = get_lims(dat['<wT>/u*T*'])
         dat.plot(x='<wT>/u*T*', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
-        plt.savefig('wT_{!s}-{!s}.png'.format(t_ini, t_end))
+        if savefigs: plt.savefig('wT_{!s}-{!s}.png'.format(t_ini, t_end))
 
-    if not savefigs: plt.show()
+    if theta:
+        xlim = get_lims(dat['<Theta>'])
+        dat.plot(x='<Theta>', y='z_uv', grid=True, xlim=xlim, **plot_kwargs)
+        if savefigs: plt.savefig('Theta_{!s}-{!s}.png'.format(t_ini, t_end))
+ 
+
+    if not savefigs:
+        figs = plt.gcf()
+        plt.show()
+        plt.close()
+        return figs
     return dat
 
 

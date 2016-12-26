@@ -25,10 +25,10 @@ def postProcess2D(model_outputdir, t_ini=100000, t_end=None, simulation=None, re
     import numpy as np
     if not simulation:
         from os import path
-        simulation = simClass.simulation(path.join(model_outputdir, 'codebkp/param.nml'))
+        simulation = simClass.Simulation(path.join(model_outputdir, 'codebkp/param.nml'))
 
-    nz = simulation.domain.Nz
-    Lz = simulation.domain.Lz
+    nz = simulation.domain.nz
+    Lz = simulation.domain.lz
     u_star = simulation.u_scale
     dt_dim = simulation.dt
     if not t_end:
@@ -88,7 +88,7 @@ def readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=Non
     if path.basename(fname).startswith('con_tt'):
         p_nd = domain.ld*domain.ny*domain.nz_tot*sim.n_con
         pcon = unpack('d'*p_nd, bfile.read(8*p_nd))
-        pcon = np.array(pcon).reshape((sim.domain.Ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
+        pcon = np.array(pcon).reshape((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
         return pcon
     
     elif path.basename(fname).startswith('vel_sc'):
@@ -256,33 +256,33 @@ def readBinary(fname, simulation=None, domain=None, engine='fortran'):
         #--------------
     
         if path.basename(fname).startswith('con_tt'):
-            p_nd = sim.domain.Ld*sim.ny*sim.nz_tot*sim.n_con
+            p_nd = sim.domain.ld*sim.ny*sim.nz_tot*sim.n_con
             pcon = unpack('d'*p_nd, bfile.read(8*p_nd))
-            pcon = np.array(pcon).reshape((sim.domain.Ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
+            pcon = np.array(pcon).reshape((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
             return pcon
     
         elif path.basename(fname).startswith('vel_sc'):
             u_nd = domain.ld*domain.ny*domain.nz_tot
-            u = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.Ld, domain.ny, domain.nz_tot), order='F')
-            v = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.Ld, domain.ny, domain.nz_tot), order='F')
-            w = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.Ld, domain.ny, domain.nz_tot), order='F')
+            u = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
+            v = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
+            w = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
 
             if simulation.s_flag and simulation.pcon_flag:
-                p_nd = sim.domain.Ld*sim.ny*sim.nz_tot*sim.n_con
-                T = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((sim.domain.Ld, sim.ny, sim.nz_tot), order='F')
-                pcon = np.array(unpack('d'*p_nd, bfile.read(8*p_nd))).reshape((sim.domain.Ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
+                p_nd = sim.domain.ld*sim.ny*sim.nz_tot*sim.n_con
+                T = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((sim.domain.ld, sim.ny, sim.nz_tot), order='F')
+                pcon = np.array(unpack('d'*p_nd, bfile.read(8*p_nd))).reshape((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
                 return u,v,w,T,pcon
 
             elif simulation.s_flag and (not simulation.pcon_flag):
-                T = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((sim.domain.Ld, sim.ny, sim.nz_tot), order='F')
+                T = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((sim.domain.ld, sim.ny, sim.nz_tot), order='F')
                 return u,v,w,T
     
             elif (not simulation.s_flag) and (not simulation.pcon_flag):
                 return u,v,w
 
             elif (not simulation.s_flag) and simulation.pcon_flag:
-                p_nd = sim.domain.Ld*sim.ny*sim.nz_tot*sim.n_con
-                pcon = np.array(unpack('d'*p_nd, bfile.read(8*p_nd))).reshape((sim.domain.Ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
+                p_nd = sim.domain.ld*sim.ny*sim.nz_tot*sim.n_con
+                pcon = np.array(unpack('d'*p_nd, bfile.read(8*p_nd))).reshape((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
                 return u,v,w,pcon
         return
     #---------

@@ -116,3 +116,16 @@ def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
     #-------
 
     return ticklabels, formatting, levels_con
+
+
+def get_lims(data, increase=.15):
+    """
+    Quick and simple function that gets nice limits to plot the data in
+    """
+    totdelta = abs(data.max() - data.min())
+    incr = increase*totdelta
+    botlim = data.min() - incr
+    toplim = data.max() + incr
+
+    return botlim, toplim
+
