@@ -199,7 +199,7 @@ END DO
 
 ! Average <T> - dimensional
 file=TRIM(dir)//'/aver_theta.out'
-ustar=1.0/T_scale
+ustar=1.0
 inquire(file=file, exist=exist)
 if (exist) then
   CALL AVG_T(nz,nt,dt,tini,tend,file,ustar,avgtx(22,:))

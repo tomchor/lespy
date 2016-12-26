@@ -15,7 +15,9 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
     t_end: int
         timestep to end the average.
     savefigs: bool
-        whether or not to save the figs. If false, figs are just shown.
+        whether or not to save the figs. If false, figs are just shown and plt.gcf() is returned instead.
+    normalize: boolean
+        whether to normalize height with inversion height.
     """
     from . import postProcess2D
     from . import Simulation
@@ -29,11 +31,21 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
     t_end = int(t_end)
     dat = postProcess2D(outputs, t_ini=t_ini, t_end=t_end, simulation=sim, return_df=return_df)
 
+    #------
+    # The theta that comes out is actually more like rho/rho0, to we transform to absolute temperature
+    dat.loc[:, '<Theta>'] = 2*sim.t_init - sim.t_scale*dat['<Theta>']
+    #------
+
+    #------
+    # Inverts and maybe normalizes z axis
     if normalize:
         dat.iloc[:, :3] = -dat.iloc[:, :3]/sim.inversion_depth
     else:
         dat.iloc[:, :3] = -dat.iloc[:, :3]
+    #------
 
+    #------
+    # plots the means
     if means:
         xlim = get_lims(dat['<U>/u*'])
         dat.plot(x='<U>/u*', y='z_uv', grid=True, xlim=xlim, **plot_kwargs)
@@ -46,7 +58,10 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
         xlim = get_lims(dat['<W>/u*'])
         dat.plot(x='<W>/u*', y='z_uv', grid=True, xlim=xlim, **plot_kwargs)
         if savefigs: plt.savefig('W_{!s}-{!s}.png'.format(t_ini, t_end))
+    #------
     
+    #------
+    # plots the variances
     if variances:
         xlim = get_lims(dat['<u^2>/u*^2'])
         dat.plot(x='<u^2>/u*^2', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
@@ -59,7 +74,10 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
         xlim = get_lims(dat['<w^2>/u*^2'])
         dat.plot(x='<w^2>/u*^2', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
         if savefigs: plt.savefig('ww_{!s}-{!s}.png'.format(t_ini, t_end))
+    #------
     
+    #------
+    # plots the covariances
     if covariances:
         xlim = get_lims(dat['<uw>/u*^2'])
         dat.plot(x='<uw>/u*^2', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
@@ -72,19 +90,23 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
         xlim = get_lims(dat['<wT>/u*T*'])
         dat.plot(x='<wT>/u*T*', y='z_uv', xlim=xlim, grid=True, **plot_kwargs)
         if savefigs: plt.savefig('wT_{!s}-{!s}.png'.format(t_ini, t_end))
+    #------
 
+    #------
+    # plots theta
     if theta:
         xlim = get_lims(dat['<Theta>'])
         dat.plot(x='<Theta>', y='z_uv', grid=True, xlim=xlim, **plot_kwargs)
         if savefigs: plt.savefig('Theta_{!s}-{!s}.png'.format(t_ini, t_end))
+    #------
  
-
     if not savefigs:
         figs = plt.gcf()
         plt.show()
         plt.close()
         return figs
-    return dat
+    else:
+        return dat
 
 
 
