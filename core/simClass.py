@@ -35,9 +35,10 @@ class Simulation(object):
         for i in range(2,140):
             if self.domain.nz%i == 0:
                 divs.append(i)
-        print('Nz = {:03d} and is divisible by : {}'.format(self.domain.Nz, divs))
+        print('Nz = {:03d} and is divisible by : {}'.format(self.domain.nz, divs))
         if full:
             print('Coriolis timescale           : {:1.1e} timesteps'.format(int(1./self.freq_coriolis/self.dt)))
+
 
     def __str__(self):
         buff='Simulation Parameters\n'+ '-'*21
@@ -45,8 +46,9 @@ class Simulation(object):
         buff += 'dt:        : {} s'.format(self.dt)
         buff+= self.domain.__str__()
         return buff
-
-    __repr__ = __str__
+    def __repr__(self):
+        aux = """<lespy.Simulation object>. Domain: {}""".format(self.domain.__repr__())
+        return aux
 
 
 
@@ -90,7 +92,10 @@ def sim_from_file(namelist, tlength_from_ke=True, check_ke_file=None):
                     if path.isfile(atmpt):
                         kefile = atmpt
                     else:
-                        raise
+                        print('No check_ke file was found')
+                        print('Warning: getting length solely from param.nml, which can be flawed.')
+                        tlength = params['nsteps']
+                        kefile=None
         #---------
         
         print('Opening', kefile)
@@ -104,7 +109,7 @@ def sim_from_file(namelist, tlength_from_ke=True, check_ke_file=None):
                 print('Warning: linescount in ke_check.out is different from index label in the file.')
                 print('Setting timelength to the line count of check_ke.')
                 tlength = kecount
-        except FileNotFoundError:
+        except (FileNotFoundError, OSError) as e:
             print("Coulndn't open check_ke.out.")
             tlength = params['nsteps']
     #---------
@@ -118,7 +123,12 @@ def sim_from_file(namelist, tlength_from_ke=True, check_ke_file=None):
 
     #---------
     # re-call to Simulation class but with all the parameters known
+    if kefile:
+        check_ke=path.abspath(kefile)
+    else:
+        check_ke=None
     out = Simulation(domain=dmn,
+            check_ke=check_ke,
             timelength=tlength,
             avglength=params['p_count'],
             u_scale=params['u_star'],

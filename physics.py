@@ -18,7 +18,11 @@ units['alpha_w'] = '1/K'
 mu_w = 1.08e-3
 units['mu_w'] = 'Pa*s'
 
-def riseVelocity(diam, rho_d=859.870, rho_w=rho_w, mu=1.08e-3):
+# Kinematic viscocity of air
+nu_a = 1.48e-5
+units['nu_a'] = 'm**2/s'
+
+def riseVelocity(diam, rho_d=859.870, rho_w=rho_w, mu=mu_w):
     """
     Calculates the droplet rise velocity for a quiescent fluid
 

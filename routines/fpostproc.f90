@@ -215,7 +215,6 @@ end if
 
 
 ! Average <wT> - nondimensional
-!ustar=ustarr/T_scale
 ustar=ustarr*tstar_avg_curr/T_scale
 if(SUM(tstar)/nt.eq.0.0) ustar=1.0/T_scale !nao normaliza se tstar eh igual a zero
 

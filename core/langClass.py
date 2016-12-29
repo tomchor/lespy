@@ -1,9 +1,9 @@
 import numpy as _np
-from .. import physics as phs
+from .. import physics as _phs
 
 class driftVel:
     """class for Stokes drift velocity"""
-    def __init__(self, simulation=None, wl=None, wn=None, amp=None, sigma=None, us0=None, g=phs.g):
+    def __init__(self, simulation=None, wl=None, wn=None, amp=None, sigma=None, us0=None, g=_phs.g):
         if simulation:
             self.wl = simulation.lambda_w
             self.amp = simulation.amp_w
@@ -21,7 +21,7 @@ class driftVel:
         if (self.sigma == None):
             self.sigma = self.get_sigma()
         if (self.amp !=None) and (self.wn != None):
-            self.Us_function = phs.get_Ustokes(self.amp, self.wn, g=self.g)
+            self.Us_function = _phs.get_Ustokes(self.amp, self.wn, g=self.g)
         self.Us0 = self.get_Us0()
         self.efolding_z = self.get_efolding()
 
@@ -66,13 +66,10 @@ class driftVel:
             else:
                 return dusdz
 
-    def show(self):
-        print('#' * 10,' Stokes Drift Parameters ','#' * 10)
-        print("The gravitational acceleration is ",self.g," m/s^2")
-        print("The wavelength is ",self.wl, " m")
-        print("The wavenumber is ",self.wn, " /m")
-        print("The frequency is ",self.sigma, " /s")
-        print("The velocity of Stokes drift at the surface is ",self.us0,
-                " m/s")
-        print('#' * 10,' END Stokes Drift Parameters ','#' * 10)
-
+    def __str__(self):
+        aux = """     Stokes Drift
+Wavelength: {self.wl} m
+wavenumber: {self.wn}, /m
+frequency: {self.sigma} 1/s
+surface velocity: {self.us0} m/s""".format(**locals())
+        return aux
