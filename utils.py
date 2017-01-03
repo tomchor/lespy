@@ -4,7 +4,7 @@ def paramParser(nmlpath):
     """Function that parses parameters from param.nml namelist files
     """
     from .f90nml import read
-    from os.path import basename, isfile, exists, join
+    from os.path import basename, isfile, exists, join, abspath
     from os import remove
 
     buffername = nmlpath.replace('/', '_') + '.buffer'
@@ -20,10 +20,10 @@ def paramParser(nmlpath):
         else:
             try:
                 namelist = open(join(nmlpath, 'param.nml'), 'rt')
-                print('Found param.nml at {}'.format(join(nmlpath, 'param.nml')))
+                print('Found param.nml at {}'.format(abspath('param.nml')))
             except:
                 namelist = open(join(nmlpath, 'codebkp/param.nml'), 'rt')
-                print('Found param.nml at {}'.format(join(nmlpath, 'codebkp/param.nml')))
+                print('Found param.nml at {}'.format(abspath('codebkp/param.nml')))
         #----------
 
     else:

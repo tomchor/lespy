@@ -22,6 +22,9 @@ class Simulation(object):
             self.__dict__.update(kwargs)
         #------------
 
+        self.w_star = self.get_w_star()
+        
+
 
     def check(self, full=True):
         """
@@ -39,6 +42,12 @@ class Simulation(object):
         if full:
             print('Coriolis timescale           : {:1.1e} timesteps'.format(int(1./self.freq_coriolis/self.dt)))
 
+    def get_w_star(self):
+        """Calculates the convective scale"""
+        from .. import physics as phys
+        w_star = (phys.g*self.wt_s*self.inversion_depth/self.t_init)**(1./3.)
+        return w_star
+
 
     def __str__(self):
         buff='Simulation Parameters\n'+ '-'*21
@@ -52,7 +61,7 @@ class Simulation(object):
 
 
 
-def sim_from_file(namelist, tlength_from_ke=True, check_ke_file=None):
+def sim_from_file(namelist, tlength_from_ke=False, check_ke_file=None):
     """
     Reads and parses namelist and then calls Simulation class
     """
@@ -119,6 +128,7 @@ def sim_from_file(namelist, tlength_from_ke=True, check_ke_file=None):
     else:
         print('Warning: getting length solely from param.nml, which can be flawed.')
         tlength = params['nsteps']
+        kefile=None
     #---------
 
     #---------
@@ -132,7 +142,7 @@ def sim_from_file(namelist, tlength_from_ke=True, check_ke_file=None):
             timelength=tlength,
             avglength=params['p_count'],
             u_scale=params['u_star'],
-            inversion_depth=params['z_i'],
+            inversion_depth=params['z_i']*params['prop_mixed'],
             T_scale=params['t_scale'],
             **params)
     #---------

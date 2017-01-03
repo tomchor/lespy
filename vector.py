@@ -22,7 +22,7 @@ def vorticity(u,v,w, simulation=None, domain=None, axes=[1,2,3]):
 
 
 def vorticity_readable(u,v,w, simulation=None, domain=None, axes=[1,2,3]):
-    """Calculates the 3D relative vorticity vector"""
+    """Calculates the 3D relative vorticity vector (first readable version, but uses too much ram probably)"""
     import numpy as np
     diff = np.gradient
 
