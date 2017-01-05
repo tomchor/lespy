@@ -71,7 +71,7 @@ def nameParser(fname):
         import re
         numbers = re.split('[a-z. +_]',fname)
         ndtime, pcon_n, row, col = [ int(el) for el in numbers if el is not '' ]
-        return ndtime, pcon_n, row, col
+        return int(ndtime), pcon_n, row, col
 
 
 def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
@@ -129,3 +129,23 @@ def get_lims(data, increase=.15):
 
     return botlim, toplim
 
+def find_in_tree(name, path, type='f'):
+    """Find name inside path and subdirectories"""
+    import os
+    result = []
+    if type=='f':
+        for root, dirs, files in os.walk(path):
+            if name in files:
+                result.append(os.path.abspath(os.path.join(root, name)))
+    if type=='d':
+        for root, dirs, files in os.walk(path):
+            if name in dirs:
+                result.append(os.path.abspath(os.path.join(root, name)))
+
+    return result
+
+
+def np2vtr(array, outname):
+    """Writes a numpy array in vtr format"""
+    from .pyevtk.hl import gridToVTK
+    return
