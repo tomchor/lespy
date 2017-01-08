@@ -3,7 +3,7 @@
 def paramParser(nmlpath):
     """Function that parses parameters from param.nml namelist files
     """
-    from .f90nml import read
+    from .nml import read
     from os.path import basename, isfile, exists, join, abspath
     from os import remove
 
@@ -132,7 +132,12 @@ def get_lims(data, increase=.15):
 def find_in_tree(name, path, type='f'):
     """Find name inside path and subdirectories"""
     import os
-    result = []
+
+    if os.path.basename(path)==name:
+        result = [os.path.abspath(path)]
+    else:
+        result = []
+
     if type=='f':
         for root, dirs, files in os.walk(path):
             if name in files:
@@ -145,7 +150,28 @@ def find_in_tree(name, path, type='f'):
     return result
 
 
-def np2vtr(array, outname):
-    """Writes a numpy array in vtr format"""
-    from .pyevtk.hl import gridToVTK
+def np2vtr(arrays, outname):
+    """
+    Writes an xarray DataArray in vtr format
+    The input MUST be an xarray DataArray:
+    dataarray = xr.DataArray(np_array, dims=['time', 'x', 'y'], coords={'time':timestamps', 'x':x_array, 'y':y_array})
+    """
+    from . import gridToVTK
+    coords = list(arrays.values())[0].coords
+    if 'time' not in coords.dims:
+        x = coords['x'].values
+        y = coords['y'].values
+        z = coords['z'].values
+        try:
+            gridToVTK(outname, x,y,z, pointData = arrays)
+        except AssertionError:
+            arrays = { key:val.values for key,val in arrays.items() }
+            gridToVTK(outname, x,y,z, pointData = arrays)
+    else:
+        timestamps = coords['time']
+        raise ValueError('4D arrays not supported yet') 
+
     return
+
+
+

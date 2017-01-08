@@ -23,7 +23,6 @@ class Simulation(object):
         #------------
 
         self.w_star = self.get_w_star()
-        
 
 
     def check(self, full=True):
@@ -49,26 +48,25 @@ class Simulation(object):
         return w_star
 
 
-    def DataArray(self, array, timestamps=None, include_attrs=False):
+    def DataArray(self, array, timestamps=None, attrs=None, dims=None, coords=None):
         """Creates a DataArray specifically for this simulation"""
-        from .. import xarray as xr
-        import numpy as np
+        import xarray as xr
 
-        if len(array.shape)==4:
-            if timestamps==None:
-                timestamps = np.arange(array.shape[0])
-            coords = [ timestamps, self.domain.x, self.domain.y, self.domain.z ]
-            dims = [ 'time', 'x', 'y', 'z' ]
-        elif len(array.shape)==3:
-            coords = [ timestamps, self.domain.x, self.domain.y, self.domain.z ]
-            dims = [ 'time', 'x', 'y', 'z' ]
-        else:
-            raise ValueError('Works only with 3D or 4D array.')
-
-        if include_attrs:
-            attrs = vars(self)
-        else:
-            attrs = None
+        #--------
+        # Define coordinates and dimensions if not provided
+        if coords==None:
+            if len(array.shape)==4:
+                if timestamps==None:
+                    import numpy as np
+                    timestamps = np.arange(array.shape[0])
+                coords = [ timestamps, self.domain.x, self.domain.y, self.domain.z ]
+                dims = [ 'time', 'x', 'y', 'z' ]
+            elif len(array.shape)==3:
+                coords = [ self.domain.x, self.domain.y, self.domain.z ]
+                dims = [ 'x', 'y', 'z' ]
+            else:
+                raise ValueError('Works only with 3D or 4D array.')
+        #--------
 
         da = xr.DataArray(array, coords=coords, dims=dims, name=None, attrs=attrs, encoding=None, fastpath=False)
         return da
@@ -151,7 +149,7 @@ def sim_from_file(namelist, tlength_from_ke=False, check_ke_file=None):
     #---------
 
     #---------
-    # This is relatively accurate, but much faster.
+    # This is relatively less accurate, but much faster.
     else:
         from glob import glob
         print('Getting number of timesteps from last timestep of vel*.out output...', end='')

@@ -1,6 +1,8 @@
 
 class Output(object):
     """
+    Class that holds the output of the model and processes it.
+    It's diferent from the Simulation class, but it can't do stuff without it.
     """
     def __init__(self, oppath, apply_basename=False):
         """
@@ -65,25 +67,13 @@ class Output(object):
                 opfiles.loc[ndtime, 'con_tt'].append(fname)
             except (KeyError, AttributeError):
                 opfiles.loc[ndtime, 'con_tt'] = [fname]
-
-#            if ndtime not in opfiles.index:
-#                opfiles.loc[ndtime, 'con_tt'] = [fname]
-                #if isinstance(opfiles.loc[ndtime, 'con_tt'], str):
-                #    opfiles.loc[ndtime, 'con_tt'] = [ opfiles.loc[ndtime, 'con_tt'], fname ]
-#            else:
-#                if isinstance(opfiles.loc[ndtime, 'con_tt'], str):
-#                    opfiles.loc[ndtime, 'con_tt'] = [ opfiles.loc[ndtime, 'con_tt'], fname ]
-#                elif isinstance(opfiles.loc[ndtime, 'con_tt'], list):
-#                    opfiles.loc[ndtime, 'con_tt'].append(fname)
-#                else:
-#                    opfiles.loc[ndtime, 'con_tt'] = [fname]
         #----------
 
         self.binaries = opfiles
         return
 
 
-    def compose_pcon(self, t_ini=0, t_end=None, simulation=None):
+    def compose_pcon(self, t_ini=0, t_end=None, simulation=None, as_dataarray=True):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
         creating one big 5-dimensional numpy array in return, with the axes being
@@ -166,9 +156,17 @@ class Output(object):
         else:
             print(cons.columns.tolist())
 
-        return pcons
+        if as_dataarray:
+            print(pcons.shape)
+            dims = ['time', 'x', 'y', 'z', 'size']
+            coords = {'time':cons.index.tolist(),
+                    'x':sim.domain.x, 'y':sim.domain.y, 'z':sim.domain.z,
+                    'size':np.arange(pcons.shape[-1])}
+            return sim.DataArray(pcons, dims=dims, coords=coords)
+        else:
+            return pcons
 
-    def compose_time(self, t_ini=0, t_end=None, simulation=None, trim=True):
+    def compose_time(self, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True):
         """
         Puts together everything in time, but can't compose endless patches. Output
         matrices indexes are
@@ -205,6 +203,7 @@ class Output(object):
         #---------
 
         #---------
+        # Iterates on the timestamps to put the time-indexed array together
         for i, tstep in enumerate(bins.index):
             iSeries = bins.loc[tstep]
 
@@ -234,103 +233,26 @@ class Output(object):
             #---------
         #---------
 
+        #---------
+        # Trims the extra node(s) at the end of the x coordinate
         if trim:
             u = u[:, :sim.nx, :, :]
             v = v[:, :sim.nx, :, :]
             w = w[:, :sim.nx, :, :]
             T = T[:, :sim.nx, :, :]
+        #---------
+
+        #---------
+        # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        if as_dataarray:
+            timestamps=bins.index.tolist()
+            u = sim.DataArray(u, timestamps=timestamps)
+            v = sim.DataArray(v, timestamps=timestamps)
+            w = sim.DataArray(w, timestamps=timestamps)
+            T = sim.DataArray(T, timestamps=timestamps)
+        #---------
+
         return u,v,w,T
-
-
-    def put_together_old(self, t_ini=0, t_end=None, simulation=None):
-        """
-        Puts together ENDLESS patches
-        """
-        from .. import utils, routines
-        import numpy as np
-
-        if simulation:
-            sim=simulation
-        else:
-            raise ValueError
-
-        labels = ['con_tt', 'vel_sc']
-
-        #--------------
-        # Adjust intervals
-        if t_end is None:
-            cons = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
-        else:
-            cons = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
-        #--------------
-
-        #--------------
-        # Create output matrix
-        if 'con_tt' in cons.columns:
-            ttcons = cons['con_tt'].dropna(axis=0, how='all')
-            rows = []
-            cols = []
-            for patches in ttcons:
-                print(patches)
-                for patch in patches:
-                    ndtime, ncon, row, col = utils.nameParser(patch)
-                    rows.append(row)
-                    cols.append(col)
-            delta_rows = max(rows) - min(rows) + 1
-            delta_cols = max(cols) - min(cols) + 1
-            pcons = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot, sim.n_con), np.nan)
-        else:
-            pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan)
-        #--------------
-
-        if 'vel_sc' in cons.columns:
-            sccons = cons['con_tt'].dropna(axis=0, how='all')
-
-            for i, ndtime in enumerate(cons.index):
-                if ndtime not in sccons.index:
-                    continue
-                print(i, ndtime)
-                for patch in sccons.loc[ndtime]:
-                    ndtime, ncon, row, col = utils.nameParser(patch)
-                    con = routines.readBinary(patch, simulation=sim)
-
-                    min_yj = (row - min(rows))*sim.ny
-                    max_yj = min_yj + sim.ny
-
-                    min_xi = (col - min(cols))*sim.nx
-                    max_xi = min_xi + sim.nx
-
-                    pcons[i, min_xi:max_xi, min_yj:max_yj, :, :] = con[:sim.nx,:,:,:]
-
-        if 'con_tt' in cons.columns:
-            ttcons = cons['con_tt'].dropna(axis=0, how='all')
-            rows = []
-            cols = []
-            for patches in ttcons:
-                print(patches)
-                for patch in patches:
-                    ndtime, ncon, row, col = utils.nameParser(patch)
-                    rows.append(row)
-                    cols.append(col)
-            delta_rows = max(rows) - min(rows) + 1
-            delta_cols = max(cols) - min(cols) + 1
-
-            for i, ndtime in enumerate(cons.index):
-                if ndtime not in tcons.index:
-                    continue
-                print(i, ndtime)
-                for patch in ttcons.loc[ndtime]:
-                    ndtime, ncon, row, col = utils.nameParser(patch)
-                    con = routines.readBinary(patch, simulation=sim)
-
-                    min_yj = (row - min(rows))*sim.ny
-                    max_yj = min_yj + sim.ny
-
-                    min_xi = (col - min(cols))*sim.nx
-                    max_xi = min_xi + sim.nx
-
-                    pcons[i, min_xi:max_xi, min_yj:max_yj, :, :] = con[:sim.nx,:,:,:]
-        return pcons
 
 
 

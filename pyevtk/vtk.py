@@ -28,8 +28,11 @@
 # *  export data to binary VTK file.   *
 # **************************************
 
-from evtk import writeBlockSize, writeArrayToFile, writeArraysToFile
-from xml import XmlWriter
+# Following lines changed to py3, by tomaschor
+#from evtk import writeBlockSize, writeArrayToFile, writeArraysToFile
+#from xml import XmlWriter
+from .evtk import writeBlockSize, writeArrayToFile, writeArraysToFile
+from .xml import XmlWriter
 import sys
 import os
 
@@ -125,7 +128,9 @@ def _mix_extents(start, end):
     return string
 
 def _array_to_string(a):
-    s = "".join([`num` + " " for num in a])
+    # Next line was changed by tomaschor @ 2017-01-05 to adapt to py3
+    #s = "".join([`num` + " " for num in a])
+    s = "".join([repr(num) + " " for num in a])
     return s
 
 def _get_byte_order():
