@@ -104,11 +104,26 @@ def readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=Non
     #---------
     
 
-def readBinary2(fname, simulation=None, domain=None, n_con=None):
+def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, read_just_pcon=False):
     """
     Reads a binary file according to the simulation or domain object passed
 
-    Passing a simulation might not be trustworthy because it might refer to different files
+    Parameters
+    ----------
+    fname: string
+        path of the binary file you want to open
+    simulation: lespy.Simulation
+        simulation that contains important information to assemble the file. Mostly
+        it's used to get number of points, if temperature is in the file or not and n_con.
+    domain: lespy.Domain
+        depending on what you're doing, just a domain file suffices
+    read_pcon: bool
+        if the file is vel_sc, try to read pcon after it finishes reading u,v,w,T.
+        It just gives a warning if it fails
+    n_con: int
+        number of pcon sizes to read. Overwrites n_con from simulation
+    read_just_pcon: bool
+        if file is vel_sc, skip u,v,w,T and read just pcon. Makes reading pcon a lot faster.
     """
     from os import path
     from .. import Simulation
@@ -135,10 +150,10 @@ def readBinary2(fname, simulation=None, domain=None, n_con=None):
     # Useful for later. Might as well do it just once here
     u,v,w,T,pcon = [None]*5
     u_nd = domain.ld*domain.ny*domain.nz_tot
-    if n_con:
+    if read_pcon or read_just_pcon:
+        if n_con==None:
+            n_con = sim.n_con
         p_nd = u_nd*n_con
-    else:
-        p_nd = u_nd*sim.n_con
     #---------
 
     #--------------
@@ -171,6 +186,17 @@ def readBinary2(fname, simulation=None, domain=None, n_con=None):
     # Here lies the problem! The same file name for a bunch of formats! (should consider change)
     elif path.basename(fname).startswith('vel_sc'):
         #---------
+        # If you want just the concentration, this will skip everything else and will read faster
+        if read_just_pcon:
+            if sim.s_flag:
+                bfile.read(8*u_nd*4)
+            else:
+                bfile.read(8*u_nd*3)
+            pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.ld, domain.ny, domain.nz_tot, sim.n_con), order='F')
+            return pcon*sim.pcon_scale
+        #---------
+
+        #---------
         # Every vel_sc file has at least u,v,w, so we start with that
         u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
         v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
@@ -188,11 +214,14 @@ def readBinary2(fname, simulation=None, domain=None, n_con=None):
         #---------
         # Finally, if the pcon_flag is on, we try to read the pcon field. This flag might be off
         # on the beginning of the vel_sc outputs and then on when pcon is released, so we do it as a try clause
-        if sim.pcon_flag:
+        if read_pcon:
             try:
                 pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.ld, domain.ny, domain.nz_tot, sim.n_con), order='F')
-            except ValueError:
-                pass
+            except ValueError as e:
+                if n_con!=None:
+                    raise e
+                else:
+                    print("Couldn't read pcon value at the end. Life goes on.")
         #---------
     #---------
 

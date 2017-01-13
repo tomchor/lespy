@@ -55,7 +55,7 @@ class Domain(object):
 
         x = np.arange(0, self.nx)*self.dx - self.origin_node[0]*self.dx
         y = np.arange(0, self.ny)*self.dy - self.origin_node[1]*self.dy
-        z = np.arange(0, self.nz_tot)*self.dz - self.origin_node[2]*self.dz
+        z=-(np.arange(0, self.nz_tot)*self.dz - self.origin_node[2]*self.dz)
         self.x = x
         self.y = y
         self.z = z

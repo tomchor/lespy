@@ -138,16 +138,16 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
     snaps = []
     sim = simulation
 
+    try:
+        results = results.values
+    except:
+        pass
+
     #--------
     # This sets the labels for each frame
     if timelist==None:
         timelist = range(0, results.shape[0])
     #--------
-
-    #------------
-    # Sets levels and ticks to use on the contour
-    ticklabels, formatting, levels_con = get_ticks(results, levels=levels, logscale=logscale, clim=clim, nbins=6)
-    #------------
 
     #-------
     # To take care of slightly negative or zero concentrations for plotting purposes
@@ -155,11 +155,16 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
     results = abs(results)
     #-------
 
+    #------------
+    # Sets levels and ticks to use on the contour
+    ticklabels, formatting, levels_con = get_ticks(results, levels=levels, logscale=logscale, clim=clim, nbins=6)
+    #------------
+
     for i, planecut in zip(timelist, results):
         print(i)
         aux = plane(planecut, which=which, axes=axes, outname=None, levels=levels_con, 
                 simulation=simulation, logscale=logscale, set_cbar=False, **kwargs)
-        timelabel = aux.ax.annotate(i, (.8,0.05), annotation_clip=False, xycoords='figure fraction')
+        timelabel = aux.ax.annotate(i, (.8,.05), annotation_clip=False, xycoords='figure fraction')
         aux.collections.append(timelabel)
         snaps.append(aux.collections)
     fig.axes[0].set_title(title)

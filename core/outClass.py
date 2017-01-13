@@ -130,7 +130,7 @@ class Output(object):
                 print(i, ndtime)
                 for patch in cons.loc[ndtime]:
                     ndtime, ncon, row, col = utils.nameParser(patch)
-                    con = routines.readBinary2(patch, simulation=sim)
+                    con = routines.readBinary2(patch, simulation=sim, read_pcon=True)
     
                     min_yj = (row - min(rows))*sim.ny
                     max_yj = min_yj + sim.ny
@@ -147,8 +147,9 @@ class Output(object):
             cons = cons.vel_sc
             pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan)
             for i, fname in enumerate(cons):
-                print(i, cons.index[i])
-                u,v,w,T,con = routines.readBinary2(fname, simulation=sim)
+                print(i, cons.index[i], fname)
+                #u,v,w,T,con = routines.readBinary2(fname, simulation=sim, n_con=sim.n_con, read_pcon=True)
+                con = routines.readBinary2(fname, simulation=sim, n_con=sim.n_con, read_just_pcon=True)
 
                 pcons[i,:,:,:,:] = con[:sim.nx,:,:,:]
         #---------
@@ -213,7 +214,7 @@ class Output(object):
             for col in iSeries:
                 if not isinstance(col, str): continue
                 print(col)
-                aux = routines.readBinary2(col, simulation=sim)
+                aux = routines.readBinary2(col, simulation=sim, read_pcon=False)
                 try:
                     ui,vi,wi,Ti = aux
                     u[i,:,:,:] = ui

@@ -71,6 +71,12 @@ class Simulation(object):
         da = xr.DataArray(array, coords=coords, dims=dims, name=None, attrs=attrs, encoding=None, fastpath=False)
         return da
 
+    def to_hours(self, timesteps, to_label=False):
+        """Transforms from simulation timesteps to hours"""
+        out = timesteps*self.dt/(60*60)
+        if to_label:
+            out = [ '{:.2f} hours'.format(el) for el in out ]
+        return out
 
     def __str__(self):
         buff='Simulation Parameters\n'+ '-'*21
