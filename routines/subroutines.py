@@ -165,7 +165,7 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     #---------
     # Straightforward
     if path.basename(fname).startswith('con_tt'):
-        pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.ld, domain.ny, domain.nz_tot, sim.n_con), order='F')
+        pcon = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
     #---------
     
     #---------

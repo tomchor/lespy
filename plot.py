@@ -111,7 +111,8 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
 
 
 def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title='',
-        clim=[], logscale=True, axes=[], levels=None, timelist=None, aspect='equal', **kwargs):
+        clim=[], logscale=True, axes=[], levels=None, nbins=6,
+        timelist=None, aspect='equal', **kwargs):
     """
     Prints 2D animations from binary data for oil concentrations
 
@@ -157,7 +158,7 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
 
     #------------
     # Sets levels and ticks to use on the contour
-    ticklabels, formatting, levels_con = get_ticks(results, levels=levels, logscale=logscale, clim=clim, nbins=6)
+    ticklabels, formatting, levels_con = get_ticks(results, levels=levels, logscale=logscale, clim=clim, nbins=nbins)
     #------------
 
     for i, planecut in zip(timelist, results):
