@@ -49,18 +49,43 @@ class Domain(object):
         return
     
 
-    def makeAxes(self):
-        """Creates the x, y and z axes based on dx and nx"""
+    def makeAxes(self, array=None, origin=None):
+        """
+        Creates the x, y and z axes based on dx and nx
+        
+        Parameters
+        ----------
+        array: numpy.ndarray
+            array from which to get the number of points (for endless)
+        origin: tuple, list
+            3D coord of node that is to be taken as origin. Default is
+            whatever is in the domain object. Ex.: origin=(50,50,50)
+        """
         import numpy as np
 
-        x = np.arange(0, self.nx)*self.dx - self.origin_node[0]*self.dx
-        y = np.arange(0, self.ny)*self.dy - self.origin_node[1]*self.dy
-        z=-(np.arange(0, self.nz_tot)*self.dz - self.origin_node[2]*self.dz)
-        self.x = x
-        self.y = y
-        self.z = z
+        if origin:
+            origin_node = origin
+        else:
+            origin_node = self.origin_node
 
-        return
+        if type(array) != type(None):
+            nx, ny, nz_tot = array.shape
+        else:
+            nx = self.nx
+            ny = self.ny
+            nz_tot = self.nz_tot
+
+        x = np.arange(0, nx)*self.dx - origin_node[0]*self.dx
+        y = np.arange(0, ny)*self.dy - origin_node[1]*self.dy
+        z=-(np.arange(0, nz_tot)*self.dz - origin_node[2]*self.dz)
+
+        if type(array) != type(None):
+            return x,y,z
+        else:
+            self.x = x
+            self.y = y
+            self.z = z
+            return
 
 
     def __str__(self):

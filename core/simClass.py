@@ -49,7 +49,11 @@ class Simulation(object):
 
 
     def DataArray(self, array, timestamps=None, attrs=None, dims=None, coords=None):
-        """Creates a DataArray specifically for this simulation"""
+        """
+        Creates a DataArray specifically for this simulation.
+        
+        Currently does not work with xarray yet because of different domain.
+        """
         import xarray as xr
 
         #--------

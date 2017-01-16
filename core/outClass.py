@@ -4,7 +4,7 @@ class Output(object):
     Class that holds the output of the model and processes it.
     It's diferent from the Simulation class, but it can't do stuff without it.
     """
-    def __init__(self, oppath, apply_basename=False):
+    def __init__(self, oppath, apply_basename=False, n_cons=[1], separate_ncon=True):
         """
         Lists every output file from a simulation (so far only vel_sc, vel_t, temp_t and con_tt)
 
@@ -56,7 +56,7 @@ class Output(object):
         #----------
 
         #----------
-        # list con_tt files (each antry is a list, since there can be lots for each timestep
+        # list con_tt files (each entry is a list, since there can be lots for each timestep
         con_tt = sorted(glob(path.join(oppath, 'con_tt*out')))
         if apply_basename:
             con_tt = map(path.basename, con_tt)
@@ -68,6 +68,16 @@ class Output(object):
             except (KeyError, AttributeError):
                 opfiles.loc[ndtime, 'con_tt'] = [fname]
         #----------
+
+        #---------
+        # Separate each list entry of con_tt into list of lists (one for each n_con)
+        if separate_ncon:
+            nconlist = [ 's{:03d}'.format(el) for el in n_cons ]
+            self.n_cons = nconlist
+            for i,entries in opfiles.loc[:, 'con_tt'].dropna().iteritems():
+                flist = [ [ entry for entry in entries if ncon in entry ] for ncon in nconlist ]
+                opfiles.loc[i, 'con_tt'] = flist
+        #---------
 
         self.binaries = opfiles
         return
@@ -112,33 +122,46 @@ class Output(object):
         elif 'con_tt' in cons.columns.tolist():
             cons = cons.con_tt.dropna()
 
-            #--------------
-            # We find the max and min row and col to find the dimension of matrix
-            rows = []
-            cols = []
-            for patches in cons:
-                for patch in patches:
-                    ndtime, ncon, row, col = utils.nameParser(patch)
-                    rows.append(row)
-                    cols.append(col)
-            delta_rows = max(rows) - min(rows) + 1
-            delta_cols = max(cols) - min(cols) + 1
-            #--------------
-
-            pcons = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot, sim.n_con), np.nan)
-            for i, ndtime in enumerate(cons.index):
-                print(i, ndtime)
-                for patch in cons.loc[ndtime]:
-                    ndtime, ncon, row, col = utils.nameParser(patch)
-                    con = routines.readBinary2(patch, simulation=sim, read_pcon=True)
+            #--------
+            # We iterate over the different sizes of pcon.
+            # Here n_i is a local integer and n_cons is a lit with the files for one size
+            pcons = []
+            for n_i, n_con in enumerate(self.n_cons):
+                print(n_i, n_con)
+                #---------
+                # First now for each pcon size, we find the max and min row 
+                # and col to find the dimension of the array that will hold the results.
+                rows = []
+                cols = []
+                #for patches in n_cons:
+                for patches in cons:
+                    for patch in patches[n_i]:
+                        ndtime, ncon, row, col = utils.nameParser(patch)
+                        rows.append(row)
+                        cols.append(col)
+                delta_rows = max(rows) - min(rows) + 1
+                delta_cols = max(cols) - min(cols) + 1
+                #---------
     
-                    min_yj = (row - min(rows))*sim.ny
-                    max_yj = min_yj + sim.ny
-
-                    min_xi = (col - min(cols))*sim.nx
-                    max_xi = min_xi + sim.nx
-
-                    pcons[i, min_xi:max_xi, min_yj:max_yj, :, :] = con[:sim.nx,:,:,:]
+                #---------
+                # Now we iterate again over the time steps to read the files of one pcon size
+                pcon = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot), np.nan)
+                for i, ndtime in enumerate(cons.index):
+                    print(i, ndtime, n_con)
+                    for patch in cons.loc[ndtime][n_i]:
+                        ndtime, ncon, row, col = utils.nameParser(patch)
+                        con = routines.readBinary2(patch, simulation=sim, read_pcon=True, read_just_pcon=True)
+        
+                        min_yj = (row - min(rows))*sim.ny
+                        max_yj = min_yj + sim.ny
+    
+                        min_xi = (col - min(cols))*sim.nx
+                        max_xi = min_xi + sim.nx
+    
+                        pcon[i, min_xi:max_xi, min_yj:max_yj, :] = con[:sim.nx,:,:]
+                pcons.append(pcon)
+                #---------
+            #--------
         #---------
 
         #---------
@@ -148,7 +171,6 @@ class Output(object):
             pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan)
             for i, fname in enumerate(cons):
                 print(i, cons.index[i], fname)
-                #u,v,w,T,con = routines.readBinary2(fname, simulation=sim, n_con=sim.n_con, read_pcon=True)
                 con = routines.readBinary2(fname, simulation=sim, n_con=sim.n_con, read_just_pcon=True)
 
                 pcons[i,:,:,:,:] = con[:sim.nx,:,:,:]
@@ -158,12 +180,29 @@ class Output(object):
             print(cons.columns.tolist())
 
         if as_dataarray:
-            print(pcons.shape)
-            dims = ['time', 'x', 'y', 'z', 'size']
-            coords = {'time':cons.index.tolist(),
+            #----------
+            # If there is more than one droplet, each can have a different domain (endless)
+            if isinstance(pcons, list):
+                dims = ['time', 'x', 'y', 'z']
+                pcons_da = []
+                for pcon in pcons:
+                    x,y,z = sim.domain.makeAxes(pcon[0])
+                    coords = {'time':cons.index.tolist(),
+                        'x':x, 'y':y, 'z':z}
+                    pcons_da.append(sim.DataArray(pcon, dims=dims, coords=coords))
+                del pcons
+                return pcons_da
+            #----------
+
+            #----------
+            # Else, we do it just for one
+            else:
+                dims = ['time', 'x', 'y', 'z', 'size']
+                coords = {'time':cons.index.tolist(),
                     'x':sim.domain.x, 'y':sim.domain.y, 'z':sim.domain.z,
                     'size':np.arange(pcons.shape[-1])}
-            return sim.DataArray(pcons, dims=dims, coords=coords)
+                return sim.DataArray(pcons, dims=dims, coords=coords)
+            #----------
         else:
             return pcons
 

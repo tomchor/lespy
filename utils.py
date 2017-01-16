@@ -1,5 +1,3 @@
-#from .decorators import autoassign
-
 def paramParser(nmlpath):
     """Function that parses parameters from param.nml namelist files
     """
@@ -82,7 +80,7 @@ def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
 
     #-------
     nseps = nbins+1
-    if levels==None:
+    if type(levels)==type(None):
         if logscale:
             if not clim:
                 logarray = np.log10(np.abs(array))
@@ -118,6 +116,7 @@ def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
     return ticklabels, formatting, levels_con
 
 
+
 def get_lims(data, increase=.15):
     """
     Quick and simple function that gets nice limits to plot the data in
@@ -128,6 +127,8 @@ def get_lims(data, increase=.15):
     toplim = data.max() + incr
 
     return botlim, toplim
+
+
 
 def find_in_tree(name, path, type='f'):
     """Find name inside path and subdirectories"""
@@ -148,6 +149,7 @@ def find_in_tree(name, path, type='f'):
                 result.append(os.path.abspath(os.path.join(root, name)))
 
     return result
+
 
 
 def np2vtr(arrays, outname):
