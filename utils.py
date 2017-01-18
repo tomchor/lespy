@@ -155,15 +155,16 @@ def find_in_tree(name, path, type='f'):
 def np2vtr(arrays, outname):
     """
     Writes an xarray DataArray in vtr format
-    The input MUST be an xarray DataArray:
+    The input MUST be a dict with xarray DataArrays:
     dataarray = xr.DataArray(np_array, dims=['time', 'x', 'y'], coords={'time':timestamps', 'x':x_array, 'y':y_array})
     """
-    from . import gridToVTK
+    from .pyevtk.hl import gridToVTK
     coords = list(arrays.values())[0].coords
+    x = coords['x'].values
+    y = coords['y'].values
+    z = coords['z'].values
+
     if 'time' not in coords.dims:
-        x = coords['x'].values
-        y = coords['y'].values
-        z = coords['z'].values
         try:
             gridToVTK(outname, x,y,z, pointData = arrays)
         except AssertionError:
@@ -171,7 +172,12 @@ def np2vtr(arrays, outname):
             gridToVTK(outname, x,y,z, pointData = arrays)
     else:
         timestamps = coords['time']
-        raise ValueError('4D arrays not supported yet') 
+        for tstep in timestamps:
+            tstep = int(tstep)
+            print('Writing t=',tstep,'to vtr')
+            for key, val in arrays.items():
+                points = { key:val.sel(time=tstep).values }
+            gridToVTK(outname.format(tstep), x,y,z, pointData = points)
 
     return
 

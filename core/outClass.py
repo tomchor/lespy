@@ -14,6 +14,7 @@ class Output(object):
         from glob import glob
         import pandas as pd
         from .. import utils
+        print('Starting to read output as ', end='')
 
         #----------
         # We use pandas to organize all the files (very handy)
@@ -34,6 +35,7 @@ class Output(object):
         #----------
         # List vel_sc files
         vel_sc = sorted(glob(path.join(oppath, 'vel_sc*out')))
+        if vel_sc: print('vel_sc', end=' ')
         for fname in vel_sc:
             ndtime = utils.nameParser(fname)
             opfiles.loc[ndtime, 'vel_sc'] = fname
@@ -42,6 +44,7 @@ class Output(object):
         #----------
         # list temp_t files
         temp_t = sorted(glob(path.join(oppath, 'temp_t*out')))
+        if temp_t: print('temp_t', end=' ')
         for fname in temp_t:
             ndtime = utils.nameParser(fname)
             opfiles.loc[ndtime, 'temp_t'] = fname
@@ -50,6 +53,7 @@ class Output(object):
         #----------
         # list vel_t files
         vel_t = sorted(glob(path.join(oppath, 'vel_t*out')))
+        if vel_t: print('vel_t', end=' ')
         for fname in vel_t:
             ndtime = utils.nameParser(fname)
             opfiles.loc[ndtime, 'vel_t'] = fname
@@ -58,6 +62,7 @@ class Output(object):
         #----------
         # list con_tt files (each entry is a list, since there can be lots for each timestep
         con_tt = sorted(glob(path.join(oppath, 'con_tt*out')))
+        if con_tt: print('con_tt', end=' ')
         if apply_basename:
             con_tt = map(path.basename, con_tt)
 
@@ -67,6 +72,7 @@ class Output(object):
                 opfiles.loc[ndtime, 'con_tt'].append(fname)
             except (KeyError, AttributeError):
                 opfiles.loc[ndtime, 'con_tt'] = [fname]
+        print()
         #----------
 
         #---------

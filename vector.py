@@ -27,6 +27,19 @@ def vorticity(u,v,w, simulation=None, domain=None, axes=[1,2,3], as_dataarray=Tr
     return om_x, om_y, om_z
 
 
+
+def integrate(arr, axis=0, dx=1.):
+    """
+    Re-implementation of numpy.trapz but saving RAM memory
+
+    axis can't be -1, as opposed to numpy.trapz
+    """
+    return dx*(0.5*(arr.take(0, axis=axis) + arr.take(-1, axis=axis)) + arr.take(range(1,arr.shape[axis]-1), axis=axis).sum(axis=axis))
+
+
+
+
+
 def vorticity_readable(u,v,w, simulation=None, domain=None, axes=[1,2,3]):
     """Calculates the 3D relative vorticity vector (first readable version, but uses too much ram probably)"""
     import numpy as np

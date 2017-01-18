@@ -10,8 +10,9 @@ class Simulation(object):
                 self.__dict__.update(vars(aux))
                 return
             else:
-                raise
+                raise ValueError('fromfile keyword should be path to param.nml')
         #------------
+
         #------------
         # Start simulation from call arguments
         else:

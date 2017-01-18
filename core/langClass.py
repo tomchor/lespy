@@ -1,4 +1,3 @@
-import numpy as _np
 from .. import physics as _phs
 
 class driftVel:
@@ -27,15 +26,18 @@ class driftVel:
 
 
     def wl2wn(self):
+        import numpy as _np
         if (self.wl != None):
             self.wn = 2 * _np.pi / self.wl 
 
     def wn2wl(self):
+        import numpy as _np
         if (self.wn != None):
             self.wl = 2 * _np.pi / self.wn
 
     def get_sigma(self):
         """Gets the angular frequency of the waves sqrt(g*wn)"""
+        import numpy as _np
         if (self.wn != None):
             return _np.sqrt(self.g * self.wn)
 
@@ -50,6 +52,7 @@ class driftVel:
 
     def Us(self, z, angle=None):
         """Returns the drift velocity at depth z"""
+        import numpy as _np
         if (self.wn != None and self.us0 != None):
             z = _np.asarray(z)
             us = self.us0 * _np.exp(2 * self.wn * z)
@@ -57,6 +60,7 @@ class driftVel:
 
     def dUsdz(self, z, angle=None):
         """Retuns the derivative of the stokes drift at height z (meters)"""
+        import numpy as _np
         if (self.wn != None and self.us0 != None):
             z = _np.asarray(z)
             dusdz = 2 * self.wn * self.us0 * _np.exp(2 * self.wn * z)

@@ -1,5 +1,3 @@
-from matplotlib import pyplot as plt
-from matplotlib import animation as anim
 
 def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation=None, 
         normalize=False, plot_kwargs={}, means=True, variances=True, covariances=False, theta=False):
@@ -19,6 +17,7 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
     normalize: boolean
         whether to normalize height with inversion height.
     """
+    from matplotlib import pyplot as plt
     from . import postProcess2D
     from . import Simulation
     from .utils import get_lims
