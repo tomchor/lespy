@@ -89,12 +89,30 @@ class Output(object):
         return
 
 
-    def compose_pcon(self, t_ini=0, t_end=None, simulation=None, as_dataarray=True):
+    def compose_pcon(self, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
         creating one big 5-dimensional numpy array in return, with the axes being
         time, x, y, z, n_con
         where n_con is the number of the particle
+
+        t_ini, t_end: int
+            initial and final time steps
+        simulation: lespy.Simulation object
+            simulation to consider when processing the results
+        as_dataarray: bool
+            if true, return xarray.DataArray. If false, return np.ndarray object
+        apply_to_z: bool
+            If true, z_function is applied to each instantaneous 3D patch before
+            merging into final array and final array has shape (time, x, y[, n_con]).
+            If false, full 3D patch is merged and final array has shape (time,x,y,z[,n_con]).
+            Currently only tested for endless (con_tt outputs).
+        z_function: function
+            Function (should be manually set to apply on z axis) to be applied on z axis
+            if apply_to_z in True.
+        dtype: numpy.type, python.type
+            type to initialize the array with.
         """
         from .. import utils, routines
         import numpy as np
@@ -139,7 +157,6 @@ class Output(object):
                 # and col to find the dimension of the array that will hold the results.
                 rows = []
                 cols = []
-                #for patches in n_cons:
                 for patches in cons:
                     for patch in patches[n_i]:
                         ndtime, ncon, row, col = utils.nameParser(patch)
@@ -150,8 +167,17 @@ class Output(object):
                 #---------
     
                 #---------
+                # For too-large sizes, it's better to integrate over z patch-by-patch
+                if apply_to_z:
+                    print('Creating array of ',(len(cons), delta_cols*sim.nx, delta_rows*sim.ny))
+                    pcon = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny), np.nan, dtype=dtype)
+                else:
+                    print('Creating array of ',(len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot))
+                    pcon = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot), np.nan, dtype=dtype)
+                #---------
+
+                #---------
                 # Now we iterate again over the time steps to read the files of one pcon size
-                pcon = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot), np.nan)
                 for i, ndtime in enumerate(cons.index):
                     print(i, ndtime, n_con)
                     for patch in cons.loc[ndtime][n_i]:
@@ -164,7 +190,13 @@ class Output(object):
                         min_xi = (col - min(cols))*sim.nx
                         max_xi = min_xi + sim.nx
     
-                        pcon[i, min_xi:max_xi, min_yj:max_yj, :] = con[:sim.nx,:,:]
+                        #--------
+                        # Here we apply the z_function to 3D patch, making it 2D (x, y), and merge
+                        if apply_to_z:
+                            pcon[i, min_xi:max_xi, min_yj:max_yj] = z_function(con[:sim.nx,:,:])
+                        else:
+                            pcon[i, min_xi:max_xi, min_yj:max_yj, :] = con[:sim.nx,:,:]
+                        #--------
                 pcons.append(pcon)
                 #---------
             #--------
@@ -174,40 +206,57 @@ class Output(object):
         # In this case there's no endless!
         elif cons.columns.tolist() == ['vel_sc']:
             cons = cons.vel_sc
-            pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan)
+
+            #---------
+            # For too-large sizes, it's better to integrate over z patch-by-patch
+            if apply_to_z:
+                print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.n_con))
+                pcons = np.full((len(cons), sim.nx, sim.ny, sim.n_con), np.nan, dtype=dtype)
+            else:
+                print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con))
+                pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan, dtype=dtype)
+            #---------
+
             for i, fname in enumerate(cons):
                 print(i, cons.index[i], fname)
                 con = routines.readBinary2(fname, simulation=sim, n_con=sim.n_con, read_just_pcon=True)
 
-                pcons[i,:,:,:,:] = con[:sim.nx,:,:,:]
+                #--------
+                # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge
+                if apply_to_z:
+                    pcons[i,:,:,:] = z_function(con[:sim.nx,:,:,:])
+                else:
+                    pcons[i,:,:,:,:] = con[:sim.nx,:,:,:]
+                #--------
         #---------
 
         else:
             print(cons.columns.tolist())
 
         if as_dataarray:
-            #----------
-            # If there is more than one droplet, each can have a different domain (endless)
-            if isinstance(pcons, list):
-                dims = ['time', 'x', 'y', 'z']
-                pcons_da = []
-                for pcon in pcons:
-                    x,y,z = sim.domain.makeAxes(pcon[0])
-                    coords = {'time':cons.index.tolist(),
-                        'x':x, 'y':y, 'z':z}
-                    pcons_da.append(sim.DataArray(pcon, dims=dims, coords=coords))
-                del pcons
-                return pcons_da
-            #----------
-
-            #----------
-            # Else, we do it just for one
-            else:
-                dims = ['time', 'x', 'y', 'z', 'size']
-                coords = {'time':cons.index.tolist(),
-                    'x':sim.domain.x, 'y':sim.domain.y, 'z':sim.domain.z,
-                    'size':np.arange(pcons.shape[-1])}
-                return sim.DataArray(pcons, dims=dims, coords=coords)
+            return utils.get_dataarray(pcons, simulation=sim, with_time=cons.index.tolist())
+#            #----------
+#            # If there is more than one droplet, each can have a different domain (endless)
+#            if isinstance(pcons, list):
+#                dims = ['time', 'x', 'y', 'z']
+#                pcons_da = []
+#                for pcon in pcons:
+#                    x,y,z = sim.domain.makeAxes(pcon[0])
+#                    coords = {'time':cons.index.tolist(),
+#                        'x':x, 'y':y, 'z':z}
+#                    pcons_da.append(sim.DataArray(pcon, dims=dims, coords=coords))
+#                del pcons
+#                return pcons_da
+#            #----------
+#
+#            #----------
+#            # Else, we do it just for one
+#            else:
+#                dims = ['time', 'x', 'y', 'z', 'size']
+#                coords = {'time':cons.index.tolist(),
+#                    'x':sim.domain.x, 'y':sim.domain.y, 'z':sim.domain.z,
+#                    'size':np.arange(pcons.shape[-1])}
+#                return sim.DataArray(pcons, dims=dims, coords=coords)
             #----------
         else:
             return pcons

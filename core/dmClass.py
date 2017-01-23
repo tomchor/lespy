@@ -69,7 +69,13 @@ class Domain(object):
             origin_node = self.origin_node
 
         if type(array) != type(None):
-            nx, ny, nz_tot = array.shape
+            if len(array.shape)==3:
+                nx, ny, nz_tot = array.shape
+            elif len(array.shape)==2:
+                nx, ny = array.shape
+                nz_tot = None
+            else:
+                raise ValueError("makeAxes() can only work with (x,y)- or (x,y,z)-shaped arrays")
         else:
             nx = self.nx
             ny = self.ny

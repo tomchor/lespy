@@ -183,3 +183,72 @@ def np2vtr(arrays, outname):
 
 
 
+def get_dataarray(pcons, simulation=None, with_time=False):
+    """
+    Gets a dataarray from pcons
+    
+    pcons: list or np.array
+        If it's a list the domains can be different
+    with_time: list, array
+        list that will serve as the time index
+    """
+    from collections import OrderedDict as ODic
+    sim = simulation
+
+    if with_time:
+        time=1
+    else:
+        time=0
+
+    #--------
+    # This is just to find out the dimensions
+    if isinstance(pcons, list):
+        pcon = pcons[0]
+    else:
+        pcon = pcons
+
+    if with_time:
+        coords = ODic({'time':with_time})
+    else:
+        coords = ODic({})
+    #--------
+
+    #--------
+    # If there is more than one dataset (list), each can have a different domain
+    if isinstance(pcons, list):
+        pcons_da = []
+        for pcon in pcons:
+            x,y,z = sim.domain.makeAxes(pcon[0])
+            if (len(pcon.shape)-time) >= 1:
+                coords.update({'x':x})
+            if (len(pcon.shape)-time) >= 2:
+                coords.update({'y':y})
+            if (len(pcon.shape)-time) == 3:
+                coords.update({'z':z})
+            pcons_da.append(sim.DataArray(pcon, coords=coords))
+        del pcons, pcon
+        return pcons_da
+    #--------
+
+    #----------
+    # Else, we do it just for one
+    else:
+        print(pcons.shape)
+        if (len(pcon.shape)-time)>=1:
+            coords.update({'x':sim.domain.x})
+        if (len(pcon.shape)-time) >= 2:
+            coords.update({'y':sim.domain.y})
+        #-------
+        # If pcons in not list, then the last dim is always the size
+        if (len(pcon.shape)-time) >= 3:
+            import numpy as np
+            if (len(pcon.shape) - time) == 4:
+                coords.update({'z':sim.domain.z})
+            coords.update({'size':np.arange(pcon.shape[-1])})
+        #-------
+        if (len(pcon.shape)-time) == 5:
+            raise ValueError("Too many dimensions in array")
+        return sim.DataArray(pcons, coords=coords)
+    #----------
+
+
