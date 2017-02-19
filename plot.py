@@ -145,7 +145,7 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
 
     #--------
     # This sets the labels for each frame
-    if timelist==None:
+    if type(timelist)==type(None):
         timelist = range(0, results.shape[0])
     #--------
 
@@ -191,7 +191,7 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
 
 def plane(plane, outname=None, which='xy', simulation=None, 
         axes=[], levels=None, logscale=True, clim=[],
-        set_cbar=True, cmap=None, xlim=[], ylim=[]):
+        set_cbar=True, cmap=None, xlim=[], ylim=[], aspect='equal', nbins=6):
     """
     Prints 2D animations from binary data for oil concentrations
     """
@@ -208,7 +208,7 @@ def plane(plane, outname=None, which='xy', simulation=None,
 
     #------------
     # Sets levels and ticks to use on the contour
-    ticklabels, formatting, levels_con = get_ticks(plane, levels=levels, logscale=logscale, clim=clim, nbins=6)
+    ticklabels, formatting, levels_con = get_ticks(plane, levels=levels, logscale=logscale, clim=clim, nbins=nbins)
     #------------
 
     #------------
@@ -259,6 +259,8 @@ def plane(plane, outname=None, which='xy', simulation=None,
     if set_cbar:
         cbar = plt.colorbar(aux, ticks = ticklabels, extend='both')
         cbar.ax.set_yticklabels(formatting(ticklabels))
+        plt.gca().set_aspect(aspect, 'datalim')
+        plt.tight_layout()
     #-------
 
     if outname:

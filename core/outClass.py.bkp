@@ -238,8 +238,7 @@ class Output(object):
         else:
             return pcons
 
-
-    def compose_time(self, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True,
+    def compose_time(self, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True
             apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
         """
         Puts together everything in time, but can't compose endless patches. Output
@@ -269,19 +268,16 @@ class Output(object):
         #--------------
 
         #---------
-        # Definition of output with time, x, y[ and z]
-        if apply_to_z:
-            print('Creating 4 arrays of {}, {}, {}...'.format(len(bins), sim.domain.ld, sim.ny), end='')
-            u = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-            v = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-            w = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-            T = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-        else: 
-            print('Creating 4 arrays of {}, {}, {}, {}...'.format(len(bins), sim.domain.ld, sim.ny, sim.nz_tot), end='')
-            u = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
-            v = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
-            w = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
-            T = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
+        # Definition of output with time, x, y and z
+#        if apply_to_z:
+#            print('Creating array of ',(len(cons), delta_cols*sim.nx, delta_rows*sim.ny))
+#            pcon = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny), np.nan, dtype=dtype)
+ 
+        print('Creating 4 arrays of {}, {}, {}, {}...'.format(len(bins), sim.domain.ld, sim.ny, sim.nz_tot), end='')
+        u = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
+        v = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
+        w = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
+        T = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
         print(' done.')
         #---------
 
@@ -297,44 +293,42 @@ class Output(object):
                 if not isinstance(col, str): continue
                 print(col)
                 aux = routines.readBinary2(col, simulation=sim, read_pcon=False)
-
-                #------
-                # Reduce z coordinate if theres a z_function
-                if apply_to_z:
-                    aux = [ z_function(el) for el in aux ]
-                #------
-
                 try:
                     ui,vi,wi,Ti = aux
-                    u[i] = ui
-                    v[i] = vi
-                    w[i] = wi
-                    T[i] = Ti
+                    u[i,:,:,:] = ui
+                    v[i,:,:,:] = vi
+                    w[i,:,:,:] = wi
+                    T[i,:,:,:] = Ti
+
                 except ValueError:
                     try: 
                         ui,vi,wi = aux
-                        u[i] = ui
-                        v[i] = vi
-                        w[i] = wi
+                        u[i,:,:,:] = ui
+                        v[i,:,:,:] = vi
+                        w[i,:,:,:] = wi
                     except ValueError:
                         Ti = aux
-                        T[i] = Ti
+                        T[i,:,:,:] = Ti
             #---------
         #---------
 
         #---------
         # Trims the extra node(s) at the end of the x coordinate
         if trim:
-            u = u[:, :sim.nx]
-            v = v[:, :sim.nx]
-            w = w[:, :sim.nx]
-            T = T[:, :sim.nx]
+            u = u[:, :sim.nx, :, :]
+            v = v[:, :sim.nx, :, :]
+            w = w[:, :sim.nx, :, :]
+            T = T[:, :sim.nx, :, :]
         #---------
 
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
-            u,v,w,T = utils.get_dataarray([u, v, w, T], simulation=sim, with_time=bins.index.tolist())
+            timestamps=bins.index.tolist()
+            u = sim.DataArray(u, timestamps=timestamps)
+            v = sim.DataArray(v, timestamps=timestamps)
+            w = sim.DataArray(w, timestamps=timestamps)
+            T = sim.DataArray(T, timestamps=timestamps)
         #---------
 
         return u,v,w,T

@@ -27,51 +27,9 @@ def vorticity(u,v,w, simulation=None, domain=None, axes=[1,2,3], as_dataarray=Tr
     return om_x, om_y, om_z
 
 
+def div_2d(u, v, axes=(1,2)):
+    """Calculate the 2d divergence of an ndarray"""
+    from . import numerical as nm
+    div = nm.diff_fft(u, axis=1) + nm.diff_fft(v, axis=2)
+    return div
 
-def integrate(arr, axis=0, dx=1., chunks=1):
-    """
-    Re-implementation of numpy.trapz but saving RAM memory
-
-    axis can't be -1, as opposed to numpy.trapz
-    """
-    arr = arr.values
-    if chunks==1:
-        return dx*(0.5*(arr.take(0, axis=axis) + arr.take(-1, axis=axis)) + arr.take(range(1,arr.shape[axis]-1), axis=axis).sum(axis=axis))
-    else:
-        import numpy as np
-        newshape = [ el for index, el in enumerate(arr.shape) if index != axis ]
-        integ = np.zeros(newshape)
-        limits = np.linspace(0, arr.shape[axis], chunks+1, dtype=int)
-        for ini, end in zip(limits,limits[1:]):
-            print('Integrating axis {} from {} to {}'.format(axis,ini,end))
-            arr2 = arr.take(np.arange(ini, end), axis=axis, mode='clip')
-            integ += dx*(0.5*(arr2.take(0, axis=axis) + arr2.take(-1, axis=axis)) + arr2.take(range(1,arr2.shape[axis]-1), axis=axis).sum(axis=axis))
-        del arr2
-        return integ
-
-
-
-def vorticity_readable(u,v,w, simulation=None, domain=None, axes=[1,2,3]):
-    """Calculates the 3D relative vorticity vector (first readable version, but uses too much ram probably)"""
-    import numpy as np
-    diff = np.gradient
-
-    if domain==None:
-        domain=simulation.domain
-    dx=domain.dx
-    dy=domain.dy
-    dz=domain.dz
-    x,y,z = axes
-    
-    dwdy = diff(w, axis=y)
-    dvdz = diff(v, axis=z)
-    dudz = diff(u, axis=z)
-    dwdx = diff(w, axis=x)
-    dvdx = diff(v, axis=x)
-    dudy = diff(u, axis=y)
-
-    om_x = dwdy - dvdz
-    om_y = dudz - dwdx
-    om_z = dvdx - dudy
-
-    return om_x, om_y, om_z

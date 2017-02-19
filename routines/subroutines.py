@@ -218,7 +218,8 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
             try:
                 pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.ld, domain.ny, domain.nz_tot, sim.n_con), order='F')
             except ValueError as e:
-                if n_con!=None:
+                if n_con!=None and n_con:
+                    print("Trying to read pcon failed. Set n_con=0 to specify you don't want to read it")
                     raise e
                 else:
                     print("Couldn't read pcon value at the end. Life goes on.")
@@ -231,7 +232,7 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     if isinstance(u, np.ndarray):
         u *= sim.u_scale
         v *= sim.u_scale
-        w *= sim.u_scale
+        w *=-sim.u_scale
         outlist+=[u,v,w]
     if isinstance(T, np.ndarray):
         T = 2.*sim.t_init - T*sim.t_scale

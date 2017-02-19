@@ -90,8 +90,9 @@ def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
             ticklabels = np.power(10.0, levels_con)
         else:
             if not clim:
-                clim=(array.min(), array.max())
-            levels_con = np.linspace(clim[0],clim[1], nseps)
+                clim=(float(array.min()), float(array.max()))
+                clim=get_lims(array, method='median', increase=0.)
+            levels_con = np.linspace(clim[0], clim[1], nseps)
             ticklabels = levels_con
     #-------
 
@@ -117,14 +118,23 @@ def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
 
 
 
-def get_lims(data, increase=.15):
+def get_lims(data, increase=.15, method='bounds'):
     """
     Quick and simple function that gets nice limits to plot the data in
     """
-    totdelta = abs(data.max() - data.min())
-    incr = increase*totdelta
-    botlim = data.min() - incr
-    toplim = data.max() + incr
+    import numpy as np
+    if method=='bounds':
+        totdelta = abs(float(data.max()) - float(data.min()))
+        incr = increase*totdelta
+        botlim = data.min() - incr
+        toplim = data.max() + incr
+    elif method=='median':
+        med = float(np.median(data))
+        maxval = float(np.max(data))
+        minval = float(np.min(data))
+        delta = (1.-increase)*(abs(abs(med)-abs(maxval)) + abs(abs(med)-abs(minval)))/2.
+        botlim = med - delta
+        toplim = med + delta
 
     return botlim, toplim
 
@@ -251,4 +261,33 @@ def get_dataarray(pcons, simulation=None, with_time=False):
         return sim.DataArray(pcons, coords=coords)
     #----------
 
+
+from matplotlib.colors import LinearSegmentedColormap as _lin_cmap
+
+cdict1 = {'red':   ((0.0, 0.0, 0.0),
+                   (0.5, 0.0, 0.1),
+                   (1.0, 1.0, 1.0)),
+
+         'green': ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'blue':  ((0.0, 0.0, 1.0),
+                   (0.5, 0.1, 0.0),
+                   (1.0, 0.0, 0.0))
+        }
+
+cdict2 = {'red':   ((0.0, 0.0, 0.0),
+                   (0.5, 0.0, 1.0),
+                   (1.0, 0.1, 1.0)),
+
+         'green': ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'blue':  ((0.0, 0.0, 0.1),
+                   (0.5, 1.0, 0.0),
+                   (1.0, 0.0, 0.0))
+        }
+
+blue_red1 = _lin_cmap('BlueRed1', cdict1)
+blue_red2 = _lin_cmap('BlueRed2', cdict2)
 
