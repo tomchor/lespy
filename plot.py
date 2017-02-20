@@ -264,7 +264,9 @@ def plane(plane, outname=None, which='xy', simulation=None,
     #-------
 
     if outname:
-        return plt.savefig(outname, bbox_inches='tight')
+        plt.savefig(outname, bbox_inches='tight')
+        plt.close()
+        return
     else:
         return aux
 
