@@ -21,16 +21,14 @@ def integrate(arr, axis=0, dx=1., chunks=1):
         return integ
 
 
-def diff_fft(array, n=1, axis=0, simulation=None):
+def diff_fft(array, n=1, axis=0, dx=1.):
     """
     """
     import numpy as np
-    if simulation==None:
-        daxis = 1.
     wave = np.fft.rfft(array, axis=axis)
-    freq = np.fft.rfftfreq(array.shape[axis], d=daxis)
+    freq = np.fft.rfftfreq(array.shape[axis], d=dx)
     newshape = tuple( 1 if ax!=axis else -1 for ax in range(len(array.shape)) )
-    freq = pow(1.j*(2.*np.pi), n)*freq.reshape(newshape)
+    freq = pow(1.j*2.*np.pi, n)*freq.reshape(newshape)
     return np.fft.irfft(wave*freq, axis=axis)
 
 

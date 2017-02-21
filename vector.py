@@ -27,10 +27,10 @@ def vorticity(u,v,w, simulation=None, domain=None, axes=[1,2,3], as_dataarray=Tr
     return om_x, om_y, om_z
 
 
-def div_2d(u, v, axes=(1,2)):
+def div_2d(u, v, axes=(0,1)):
     """Calculate the 2d divergence of an ndarray"""
     from . import numerical as nm
-    div = nm.diff_fft(u, axis=1) + nm.diff_fft(v, axis=2)
+    div = nm.diff_fft(u, axis=axes[0]) + nm.diff_fft(v, axis=axes[1])
     return div
 
 
@@ -38,20 +38,27 @@ def cluster_coeff(cons, simulation=None, axes=(0,1), total=None):
     """Clustering coefficient"""
     from . import numerical as nm
     import numpy as np
+    from matplotlib import pyplot as plt
 
     sim=simulation
     dx=sim.domain.dx
     dy=sim.domain.dy
 
     if type(total)==type(None):
-        total = np.trapz(np.trapz(cons**2., axis=axes[1], dx=sim.domain.dy), axis=axes[0], dx=sim.domain.dx)
+        total = np.trapz(np.trapz(cons, axis=axes[1], dx=sim.domain.dy), axis=axes[0], dx=sim.domain.dx)
 
-    dCdx = nm.diff_fft(cons, axis=axes[0])
-    dCdy = nm.diff_fft(cons, axis=axes[1])
+    dCdx = nm.diff_fft(cons, axis=axes[0], dx=dx)
+    dCdy = nm.diff_fft(cons, axis=axes[1], dx=dy)
+    #dCdx = np.diff(cons, axis=axes[0])/dx
+    #dCdy = np.diff(cons, axis=axes[1])/dy
+    #d2Cdx= nm.diff_fft(dCdx, axis=axes[0], n=2, dx=dx)
+    #d2Cdy= nm.diff_fft(dCdy, axis=axes[1], n=2, dx=dy)
    
     divC2 = dCdx**2. + dCdy**2.
+    #div2C2 = d2Cdx*d2Cdx + d2Cdy*d2Cdy
     Ccoeff = np.trapz(np.trapz(divC2, axis=axes[1], dx=sim.domain.dy), axis=axes[0], dx=sim.domain.dx)
-    return Ccoeff/total
+    #Ccoeff2 = np.trapz(np.trapz(div2C2, axis=axes[1], dx=sim.domain.dy), axis=axes[0], dx=sim.domain.dx)
+    return Ccoeff/total#, Ccoeff2/total
 
 
 
