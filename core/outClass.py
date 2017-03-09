@@ -4,7 +4,7 @@ class Output(object):
     Class that holds the output of the model and processes it.
     It's diferent from the Simulation class, but it can't do stuff without it.
     """
-    def __init__(self, oppath, apply_basename=False, n_cons=[1], separate_ncon=True):
+    def __init__(self, oppath, apply_basename=False, n_cons=[1], separate_ncon=True, verbose=False):
         """
         Lists every output file from a simulation (so far only vel_sc, vel_t, temp_t and con_tt)
 
@@ -14,7 +14,6 @@ class Output(object):
         from glob import glob
         import pandas as pd
         from .. import utils
-        print('Starting to read output as ', end='')
 
         #----------
         # We use pandas to organize all the files (very handy)
@@ -32,6 +31,7 @@ class Output(object):
             raise Exception
         #----------
 
+        print('Starting to read output as ', end='')
         #----------
         # List vel_sc files
         vel_sc = sorted(glob(path.join(oppath, 'vel_sc*out')))
@@ -72,7 +72,6 @@ class Output(object):
                 opfiles.loc[ndtime, 'con_tt'].append(fname)
             except (KeyError, AttributeError):
                 opfiles.loc[ndtime, 'con_tt'] = [fname]
-        print()
         #----------
 
         #---------
@@ -86,10 +85,11 @@ class Output(object):
         #---------
 
         self.binaries = opfiles
+        print('... done reading and organizing.')
         return
 
 
-    def compose_pcon(self, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
+    def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
             apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
@@ -129,10 +129,13 @@ class Output(object):
 
         #--------------
         # Adjust intervals
-        if t_end is None:
-            cons = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+        if type(times)!=type(None):
+            cons = self.binaries.loc[times, labels].dropna(axis=1, how='all')
         else:
-            cons = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+            if t_end is None:
+                cons = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+            else:
+                cons = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
         #--------------
 
         #--------------
@@ -239,12 +242,22 @@ class Output(object):
             return pcons
 
 
-    def compose_time(self, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True,
+    def compose_time(self, times=None, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True,
             apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
         """
         Puts together everything in time, but can't compose endless patches. Output
         matrices indexes are
         time, x, y, z
+
+        Parameters
+        ----------
+        self: lp.Output
+        times: slice
+            slice with which times to read.
+        simulation: lp.Simulation
+            to be used as base
+        trim: bool
+            whether to trim two extra points in x axis
         """
         from .. import utils, routines
         import numpy as np
@@ -262,10 +275,13 @@ class Output(object):
 
         #--------------
         # Adjust intervals
-        if t_end is None:
-            bins = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+        if type(times)!=type(None):
+            bins = self.binaries.loc[times, labels].dropna(axis=1, how='all')
         else:
-            bins = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+            if t_end is None:
+                bins = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+            else:
+                bins = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
         #--------------
 
         #---------
@@ -340,4 +356,13 @@ class Output(object):
         return u,v,w,T
 
 
+    def _compose_par(self, nprocs=10, t_ini=None, t_end=None, **kwargs):
+        import multiprocessing
+        from multiprocessing import Pool
+        bounds = [t_ini, t_end]
+        def par_compose_time(x):
+            return out.compose_time(simulation=sim, t_ini=x[0], t_end=x[1], **kwargs)
+        pool = Pool(processes=nprocs)
+        outs = pool.map(par_compose_time, bounds)
+        return zip(*outs)
 

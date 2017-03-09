@@ -66,8 +66,16 @@ def correlate(in1, in2, mode="full", axis=0):
     """
     from scipy import fftpack
     import numpy as np
+    s1 = np.array(in1.shape)
+    s2 = np.array(in2.shape)
     in1 = np.asarray(in1)
-    in2 = np.asarray(in2.take(range(in2.shape[axis])[::-1], axis=axis))
+    #in2 = np.asarray(in2.take(range(in2.shape[axis])[::-1], axis=axis))
+    if isinstance(axis,int):
+        in2 = np.asarray(np.take(in2, range(s2[axis])[::-1], axis=axis))
+    else:
+        for ax in axis:
+            in2 = np.asarray(np.take(in2, range(s2[ax])[::-1], axis=ax))
+    print(in2.shape)
 
     if in1.ndim == in2.ndim == 0:  # scalar inputs
         return in1 * in2
@@ -76,8 +84,6 @@ def correlate(in1, in2, mode="full", axis=0):
     elif in1.size == 0 or in2.size == 0:  # empty arrays
         return array([])
 
-    s1 = np.array(in1.shape)
-    s2 = np.array(in2.shape)
     complex_result = (np.issubdtype(in1.dtype, complex) or
                       np.issubdtype(in2.dtype, complex))
     shape = s1
@@ -85,24 +91,19 @@ def correlate(in1, in2, mode="full", axis=0):
     print('in shape:',s1)
     print('out shape:',shape)
 
-    # Check that input sizes are compatible with 'valid' mode
-#    if _inputs_swap_needed(mode, s1, s2):
-#        # Convolution is commutative; order doesn't have any effect on output
-#        in1, s1, in2, s2 = in2, s2, in1, s1
-
     # Speed up FFT by padding to optimal size for FFTPACK
     fshape = np.array([fftpack.helper.next_fast_len(int(d)) for d in shape])
     fslice = tuple([slice(0, int(sz)) for sz in shape])
-    # Pre-1.9 NumPy FFT routines are not threadsafe.  For older NumPys, make
+    # Pre-1.9 NumPy FFT routines are not threadsafe. For older NumPys, make
     # sure we only call rfftn/irfftn from one thread at a time.
     if axis!=None:
         axis=(axis,)
     print(fshape)
     print(axis)
-    sp1 = np.fft.rfftn(in1, axes=axis)
-    #sp1 = np.fft.rfftn(in1, s=fshape, axes=axis)
-    sp2 = np.fft.rfftn(in2, axes=axis)
-    #sp2 = np.fft.rfftn(in2, s=fshape, axes=axis)
+    #sp1 = np.fft.rfftn(in1, axes=axis)
+    sp1 = np.fft.rfftn(in1, s=[fshape[axis]], axes=axis)
+    #sp2 = np.fft.rfftn(in2, axes=axis)
+    sp2 = np.fft.rfftn(in2, s=[fshape[axis]], axes=axis)
     ret = (np.fft.irfftn(sp1 * sp2, axes=axis)[fslice].copy())
     #ret = (np.fft.irfftn(sp1 * sp2, s=fshape, axes=axis)[fslice].copy())
 

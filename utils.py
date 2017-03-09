@@ -262,6 +262,36 @@ def get_dataarray(pcons, simulation=None, with_time=False):
     #----------
 
 
+def radial_prof(data, r=None, simulation=None, func=None, axes=(0,1)):
+    """
+    Gets a radial profile around the center of `data`.
+
+    Parameters
+    ----------
+    data: np.array
+        2d array
+    r: np.array
+        matrix of distances from the point. Same shape as `data`.
+    func: function
+        defaults to np.mean
+    """
+    import numpy as np
+    axes = list(axes)
+    if type(func)==type(None):
+        func=np.mean
+    if type(r)==type(None):
+        sim=simulation
+        Lx, Ly = (np.array(data.shape)[axes]/2).astype(int)
+        x = np.arange(-Lx,Ly+1,1)*sim.domain.dx
+        y = np.arange(-Ly,Ly+1,1)*sim.domain.dy
+        xx, yy = np.meshgrid(x, y)
+        r = np.sqrt(xx**2. + yy**2.)
+    uniq = np.unique(r)
+    prof = np.array([ func(data[ r==un ]) for un in uniq ])
+    return uniq, prof
+
+
+
 from matplotlib.colors import LinearSegmentedColormap as _lin_cmap
 
 cdict1 = {'red':   ((0.0, 0.0, 0.0),
