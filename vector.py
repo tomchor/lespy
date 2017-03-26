@@ -56,7 +56,81 @@ def cluster_coeff(cons, simulation=None, axes=(0,1), total=None):
 
 
 
-def correlate_2d(Vars, simulation=None):
+#from numba import jit
+import numpy as _np
+#@jit(nopython=False)
+def correlate_2d(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
+    """
+    Calculates 2D correlations in the arrays contained in Vars
+    
+    Vars should be five-dimensional. Dimensions are
+    0: variable (obviously separate calculation for each variable)
+    1: time (one correlation for each time as well)
+    2: x (used in the correlation)
+    3: y (used in the correlation)
+
+    So the ouput will be 4-dimensional. The dimensions will be
+    0: variable
+    1: time
+    2: delta_y
+    3: delta_x
+    """
+    sim = simulation
+
+    #------
+    # Resoluation and size
+    if dx==None and dy==None:
+        if sim!=None:
+            dx = sim.domain.dx
+            dy = sim.domain.dy
+        else:
+            dx, dy = 1., 1.
+    nv, nt, nx, ny = Vars.shape
+    #------
+
+    #------
+    # useful to get y and x sizes of the correlation array
+    if nxc==None:
+        nxc = int(_np.floor(nx/2))
+    if nyc==None:
+        nyc = int(_np.floor(ny/2))
+    #------
+
+    #------
+    # Calculate mean, var and correlation matrix for calculations
+    vAvg = Vars.mean(axis=(2,3), keepdims=True)
+    Fluct = Vars - vAvg
+    vVar = Vars.var(axis=(2,3))
+    vVar[ vVar<1e-30 ] = 1e-30
+    vCorr = _np.empty((nv, nt, 2*nxc+1, 2*nyc+1))
+    #------
+
+    #------
+    # Here we set the size of the correlation matrix
+    xdel = _np.arange(-nxc,nxc+1)
+    ydel = _np.arange(-nyc,nyc+1)
+    #------
+
+    #---------
+    # Calculate the correlation
+    for iv in range(nv):
+        print('Calculating separately for iv:',iv)
+        for it in range(nt):
+            print('Calculating separately for it:',it)
+            Vars0 = Fluct[iv,it]
+            VarMax = vVar[iv,it]
+            for iix, ix in enumerate(xdel):
+                for iiy, iy in enumerate(ydel):
+                    rolled = _np.roll(_np.roll(Vars0, ix, axis=0), iy, axis=1)
+                    vCorr[iv,it,iix,iiy] = _np.mean(Vars0 * rolled) / VarMax
+    #---------
+  
+    y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
+    return x, y, vCorr
+
+
+
+def _correlate_2d(Vars, simulation=None):
     """
     Calculates 2D correlations in the arrays contained in Vars
     
