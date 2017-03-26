@@ -62,15 +62,26 @@ import numpy as _np
 def correlate_2d(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     """
     Calculates 2D correlations in the arrays contained in Vars
-    
-    Vars should be five-dimensional. Dimensions are
-    0: variable (obviously separate calculation for each variable)
-    1: time (one correlation for each time as well)
-    2: x (used in the correlation)
-    3: y (used in the correlation)
 
-    So the ouput will be 4-dimensional. The dimensions will be
-    0: variable
+    Parameters
+    ----------
+    Vars: np.array
+        4-dimensional array with the data. Dimensions are
+            0: index for variables (obviously separate calculation for each variable)
+            1: time (one correlation for each time as well)
+            2: x (used in the correlation)
+            3: y (used in the correlation)
+    simulation: lespy.Simulation
+    nyc, nyx: int, int
+        number of delta_ys and delta_xs to sample in each direction.
+        if nyc=10, for example. The x-dim of the output matrix will be 21.
+    dx, dy: float, float
+        resolution. Overwriten by simulation keyword.
+
+    Returns
+    -------
+    The ouput will be 4-dimensional. The dimensions will be
+    0: variables
     1: time
     2: delta_y
     3: delta_x
