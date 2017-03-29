@@ -257,15 +257,17 @@ def plane(plane, outname=None, which='xy', simulation=None,
     #-------
     # If this is going to animation, cbar shoudnt be set here
     if set_cbar:
-        cbar = plt.colorbar(aux, ticks = ticklabels, extend='both')
+        cbar = plt.colorbar(aux, ticks = levels_con, extend='both')
         cbar.ax.set_yticklabels(formatting(ticklabels))
         plt.gca().set_aspect(aspect, 'datalim')
         plt.tight_layout()
     #-------
 
     if outname:
+        print('saving figure...', end='')
         plt.savefig(outname, bbox_inches='tight')
         plt.close()
+        print('done.')
         return
     else:
         return aux

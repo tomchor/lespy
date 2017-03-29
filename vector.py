@@ -57,7 +57,6 @@ def cluster_coeff(cons, simulation=None, axes=(0,1), total=None):
 
 
 #from numba import jit
-import numpy as _np
 #@jit(nopython=False)
 def correlate_2d(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     """
@@ -86,6 +85,7 @@ def correlate_2d(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     2: delta_y
     3: delta_x
     """
+    import numpy as _np
     sim = simulation
 
     #------
@@ -112,7 +112,7 @@ def correlate_2d(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     vAvg = Vars.mean(axis=(2,3), keepdims=True)
     Fluct = Vars - vAvg
     vVar = Vars.var(axis=(2,3))
-    vVar[ vVar<1e-30 ] = 1e-30
+    #vVar[ vVar<1e-30 ] = 1e-30
     vCorr = _np.empty((nv, nt, 2*nxc+1, 2*nyc+1))
     #------
 
@@ -125,9 +125,8 @@ def correlate_2d(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     #---------
     # Calculate the correlation
     for iv in range(nv):
-        print('Calculating separately for iv:',iv)
         for it in range(nt):
-            print('Calculating separately for it:',it)
+            print('Calculating separately for variable {} and timestep {}:'.format(iv,it))
             Vars0 = Fluct[iv,it]
             VarMax = vVar[iv,it]
             for iix, ix in enumerate(xdel):

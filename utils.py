@@ -84,14 +84,14 @@ def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
         if logscale:
             if not clim:
                 logarray = np.log10(np.abs(array))
-                #clim = (np.nanmin(logarray), np.nanmax(logarray))
-                clim = (np.nanpercentile(logarray, 50), np.nanpercentile(logarray, 95))
+                clim = (np.nanpercentile(logarray, 20), np.nanpercentile(logarray, 95))
             levels_con = np.linspace(clim[0], clim[1], nseps)
             ticklabels = np.power(10.0, levels_con)
         else:
             if not clim:
-                clim=(float(array.min()), float(array.max()))
-                clim=get_lims(array, method='median', increase=0.)
+                #clim=(float(array.min()), float(array.max()))
+                #clim=get_lims(array, method='median', increase=0.)
+                clim = (np.nanpercentile(array, 20), np.nanpercentile(array, 95))
             levels_con = np.linspace(clim[0], clim[1], nseps)
             ticklabels = levels_con
     #-------
@@ -281,9 +281,10 @@ def radial_prof(data, r=None, simulation=None, func=None, axes=(0,1)):
         func=np.mean
     if type(r)==type(None):
         sim=simulation
+        Lx1, Ly1 = (np.array(data.shape)[axes]).astype(int)
         Lx, Ly = (np.array(data.shape)[axes]/2).astype(int)
-        x = np.arange(-Lx,Ly+1,1)*sim.domain.dx
-        y = np.arange(-Ly,Ly+1,1)*sim.domain.dy
+        x = np.arange(-Lx,-Lx+Lx1,1)*sim.domain.dx
+        y = np.arange(-Ly,-Ly+Ly1,1)*sim.domain.dy
         xx, yy = np.meshgrid(x, y)
         r = np.sqrt(xx**2. + yy**2.)
     uniq = np.unique(r)
