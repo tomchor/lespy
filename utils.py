@@ -292,6 +292,75 @@ def radial_prof(data, r=None, simulation=None, func=None, axes=(0,1)):
     return uniq, prof
 
 
+import numpy as _np
+def classbin(x, y, bins_number=100, function=_np.mean, xfunction=_np.mean, logscale=True, clean_nans=False):
+    """
+    Separates x and y inputs into bins based on the x array.
+    x and y do not have to be ordered.
+
+    Parameters
+    -----------
+    x: np.array
+        independent variable
+    y: np.array
+        dependent variable
+    bins_number: int
+        number of classes (or bins) desired
+    function: callable
+        funtion to be applied to both x and y-bins in order to smooth the data
+    logscale: boolean
+        whether or not to use a log-spaced scale to set the bins
+
+    Returns
+    -------
+    np.array:
+        x binned
+    np.array:
+        y binned
+    """
+    import warnings
+    import numpy as np
+
+    xmin=np.min(x)
+    xmax=np.max(x)
+    if logscale:
+        #-----------
+        # The following if statement gets rid of negative or zero values in the x array, since we are using log-scale
+        if (x<=0).any():
+            y=np.array([ yy for yy, xx in zip(y,x) if xx > 0 ])
+            x=np.array([ el for el in x if el > 0])
+            xmin=np.min(x)
+            xmax=np.max(x)
+        #-----------
+        bins=np.logspace(np.log(xmin), np.log(xmax), bins_number+1, base=np.e)
+    else:
+        bins=np.linspace(xmin, xmax, bins_number+1)
+    xsm = np.zeros(bins_number)
+    ysm = np.zeros(bins_number)
+
+
+
+    #-----------
+    # The following process is what actually bins the data using numpy
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        for i in range(bins_number):
+            if i == bins_number - 1:
+                sel = bins[i] <= x
+            else:
+                sel = (bins[i] <= x) & (x < bins[i+1])
+            xsm[i] = xfunction(x[sel])
+            ysm[i] = function(y[sel])
+    #-----------
+
+    if clean_nans:
+        xsm = xsm[ np.isfinite(ysm) ]
+        ysm = ysm[ np.isfinite(ysm) ]
+
+    return xsm, ysm
+
+
+
 
 from matplotlib.colors import LinearSegmentedColormap as _lin_cmap
 

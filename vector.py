@@ -139,6 +139,282 @@ def correlate_2d(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     return x, y, vCorr
 
 
+def cond_norm(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
+    """
+    Calculates the conditional density
+
+    Parameters
+    ----------
+    Vars: np.array
+        4-dimensional array with the data. Dimensions are
+            0: index for variables (obviously separate calculation for each variable)
+            1: time (one correlation for each time as well)
+            2: x (used in the correlation)
+            3: y (used in the correlation)
+    simulation: lespy.Simulation
+    nyc, nyx: int, int
+        number of delta_ys and delta_xs to sample in each direction.
+        if nyc=10, for example. The x-dim of the output matrix will be 21.
+    dx, dy: float, float
+        resolution. Overwriten by simulation keyword.
+
+    Returns
+    -------
+    The ouput will be 4-dimensional. The dimensions will be
+    0: variables
+    1: time
+    2: delta_y
+    3: delta_x
+    """
+    import numpy as _np
+    sim = simulation
+
+    #------
+    # Resolution and size
+    if dx==None and dy==None:
+        if sim!=None:
+            dx = sim.domain.dx
+            dy = sim.domain.dy
+        else:
+            dx, dy = 1., 1.
+    nv, nt, nx, ny = Vars.shape
+    #------
+
+    #------
+    # useful to get y and x sizes of the correlation array
+    if nxc==None:
+        nxc = int(_np.floor(nx/2))
+    if nyc==None:
+        nyc = int(_np.floor(ny/2))
+    #------
+
+    #------
+    # Calculate mean, var and correlation matrix for calculations
+    Mean = Vars.mean(axis=(2,3))
+    vCorr = _np.empty((nv, nt, 2*nxc+1, 2*nyc+1))
+    #------
+
+    #------
+    # Here we set the size of the correlation matrix
+    xdel = _np.arange(-nxc,nxc+1)
+    ydel = _np.arange(-nyc,nyc+1)
+    #------
+
+    #---------
+    # Calculate the correlation
+    for iix, ix in enumerate(xdel):
+        print('Calculating for x= {} of {}:'.format(iix,len(xdel)-1))
+        for iiy, iy in enumerate(ydel):
+            rolled = _np.roll(_np.roll(Vars, ix, axis=2), iy, axis=3)
+            for iv in range(nv):
+                for it in range(nt):
+                    vCorr[iv,it,iix,iiy] = _np.mean(Vars[iv,it] * rolled[iv,it]) / (Mean[iv,it]**2.)
+    #---------
+  
+    y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
+    return x, y, vCorr
+
+
+
+def cond_density(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
+    """
+    Calculates the conditional density
+
+    Parameters
+    ----------
+    Vars: np.array
+        4-dimensional array with the data. Dimensions are
+            0: index for variables (obviously separate calculation for each variable)
+            1: time (one correlation for each time as well)
+            2: x (used in the correlation)
+            3: y (used in the correlation)
+    simulation: lespy.Simulation
+    nyc, nyx: int, int
+        number of delta_ys and delta_xs to sample in each direction.
+        if nyc=10, for example. The x-dim of the output matrix will be 21.
+    dx, dy: float, float
+        resolution. Overwriten by simulation keyword.
+
+    Returns
+    -------
+    The ouput will be 4-dimensional. The dimensions will be
+    0: variables
+    1: time
+    2: delta_y
+    3: delta_x
+    """
+    import numpy as _np
+    sim = simulation
+
+    #------
+    # Resolution and size
+    if dx==None and dy==None:
+        if sim!=None:
+            dx = sim.domain.dx
+            dy = sim.domain.dy
+        else:
+            dx, dy = 1., 1.
+    nv, nt, nx, ny = Vars.shape
+    #------
+
+    #------
+    # useful to get y and x sizes of the correlation array
+    if nxc==None:
+        nxc = int(_np.floor(nx/2))
+    if nyc==None:
+        nyc = int(_np.floor(ny/2))
+    #------
+
+    #------
+    # Calculate mean, var and correlation matrix for calculations
+    Mean = Vars.mean(axis=(2,3))
+    vCorr = _np.empty((nv, nt, 2*nxc+1, 2*nyc+1))
+    #------
+
+    #------
+    # Here we set the size of the correlation matrix
+    xdel = _np.arange(-nxc,nxc+1)
+    ydel = _np.arange(-nyc,nyc+1)
+    #------
+
+    #---------
+    # Calculate the correlation
+    for iix, ix in enumerate(xdel):
+        print('Calculating for x= {} of {}:'.format(iix,len(xdel)-1))
+        for iiy, iy in enumerate(ydel):
+            rolled = _np.roll(_np.roll(Vars, ix, axis=2), iy, axis=3)
+            for iv in range(nv):
+                for it in range(nt):
+                    vCorr[iv,it,iix,iiy] = _np.mean(Vars[iv,it] * rolled[iv,it]) / Mean[iv,it]
+    #---------
+  
+    y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
+    return x, y, vCorr
+
+
+
+def detect_local_minima(arr):
+    """
+    Takes an array and detects the troughs using the local maximum filter.
+    Returns a boolean mask of the troughs (i.e. 1 when
+    the pixel's value is the neighborhood maximum, 0 otherwise)
+    """
+    import numpy as np
+    import scipy.ndimage.filters as filters
+    import scipy.ndimage.morphology as morphology
+    # http://stackoverflow.com/questions/3684484/peak-detection-in-a-2d-array/3689710#3689710
+    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.morphology.html#generate_binary_structure
+    neighborhood = morphology.generate_binary_structure(len(arr.shape),2)
+    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.filters.html#minimum_filter
+    local_min = (filters.minimum_filter(arr, footprint=neighborhood)==arr)
+    # In order to isolate the peaks we must remove the background from the mask.
+    background = (arr==0)
+    # we must erode the background in order to subtract it from local_min, or a line will 
+    # appear along the background border (artifact of the local minimum filter)
+    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.morphology.html#binary_erosion
+    eroded_background = morphology.binary_erosion(background, structure=neighborhood, border_value=1)
+    detected_minima = local_min - eroded_background
+    return np.where(detected_minima)  
+
+
+def moving_average(a, window=3, axis=0, method='forward'):
+    """simple forward Moving average"""
+    import numpy as np
+    n=window
+    ret = np.cumsum(a, dtype=float, axis=axis)
+    if method=='forward':
+        if axis==0:
+            ret[n:] = ret[n:] - ret[:-n]
+            return ret[n - 1:] / n
+        elif axis==1:
+            ret[:,n:] = ret[:,n:] - ret[:,:-n]
+            return ret[:,n - 1:] / n
+        elif axis==2:
+            ret[:,:,n:] = ret[:,:,n:] - ret[:,:,:-n]
+            return ret[:,:,n - 1:] / n
+    else:
+        raise Exception('Not implemented')
+
+
+
+def _cond_density0(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
+    """
+    Calculates 2D correlations in the arrays contained in Vars
+
+    Parameters
+    ----------
+    Vars: np.array
+        4-dimensional array with the data. Dimensions are
+            0: index for variables (obviously separate calculation for each variable)
+            1: time (one correlation for each time as well)
+            2: x (used in the correlation)
+            3: y (used in the correlation)
+    simulation: lespy.Simulation
+    nyc, nyx: int, int
+        number of delta_ys and delta_xs to sample in each direction.
+        if nyc=10, for example. The x-dim of the output matrix will be 21.
+    dx, dy: float, float
+        resolution. Overwriten by simulation keyword.
+
+    Returns
+    -------
+    The ouput will be 4-dimensional. The dimensions will be
+    0: variables
+    1: time
+    2: delta_y
+    3: delta_x
+    """
+    import numpy as _np
+    sim = simulation
+
+    #------
+    # Resolution and size
+    if dx==None and dy==None:
+        if sim!=None:
+            dx = sim.domain.dx
+            dy = sim.domain.dy
+        else:
+            dx, dy = 1., 1.
+    nv, nt, nx, ny = Vars.shape
+    #------
+
+    #------
+    # useful to get y and x sizes of the correlation array
+    if nxc==None:
+        nxc = int(_np.floor(nx/2))
+    if nyc==None:
+        nyc = int(_np.floor(ny/2))
+    #------
+
+    #------
+    # Calculate mean, var and correlation matrix for calculations
+    #vAvg = Vars.mean(axis=(2,3), keepdims=True)
+    Mean = Vars.mean(axis=(2,3))
+    vCorr = _np.empty((nv, nt, 2*nxc+1, 2*nyc+1))
+    #------
+
+    #------
+    # Here we set the size of the correlation matrix
+    xdel = _np.arange(-nxc,nxc+1)
+    ydel = _np.arange(-nyc,nyc+1)
+    #------
+
+    #---------
+    # Calculate the correlation
+    for iv in range(nv):
+        for it in range(nt):
+            print('Calculating separately for variable {} and timestep {}:'.format(iv,it))
+            Vars0 = Vars[iv,it]
+            vMean = Mean[iv,it]
+            for iix, ix in enumerate(xdel):
+                for iiy, iy in enumerate(ydel):
+                    rolled = _np.roll(_np.roll(Vars0, ix, axis=0), iy, axis=1)
+                    vCorr[iv,it,iix,iiy] = _np.mean(Vars0 * rolled) / vMean
+    #---------
+  
+    y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
+    return x, y, vCorr
+
 
 def _correlate_2d(Vars, simulation=None):
     """

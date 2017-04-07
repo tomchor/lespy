@@ -50,7 +50,7 @@ def postProcess2D(model_outputdir, t_ini=100000, t_end=None, simulation=None, re
     return outdat
 
 
-def readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=None):
+def _readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=None):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -251,7 +251,7 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     #---------
     
 
-def readBinary(fname, simulation=None, domain=None, engine='fortran'):
+def _readBinary(fname, simulation=None, domain=None, engine='fortran'):
     """Reads a binary file according to the simulation object passed
     """
     from os import path

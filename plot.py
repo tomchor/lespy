@@ -190,7 +190,7 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
 
 
 def plane(plane, outname=None, which='xy', simulation=None, 
-        axes=[], levels=None, logscale=True, clim=[],
+        axes=[], levels=None, logscale=True, clim=[], title='',
         set_cbar=True, cmap=None, xlim=[], ylim=[], aspect='equal', nbins=6):
     """
     Prints 2D animations from binary data for oil concentrations
@@ -265,6 +265,7 @@ def plane(plane, outname=None, which='xy', simulation=None,
 
     if outname:
         print('saving figure...', end='')
+        plt.title(title)
         plt.savefig(outname, bbox_inches='tight')
         plt.close()
         print('done.')
@@ -274,10 +275,11 @@ def plane(plane, outname=None, which='xy', simulation=None,
 
 
 
-def pcon_side_animation(bins, outname=None, simulation=None,
+def _pcon_side_animation(bins, outname=None, simulation=None,
         n_pcon=0, xz_func=lambda x: x.mean(axis=1),
         xy_func=lambda x: x.mean(axis=2), trim_x=True):
     """
+    obsolete I think
     Prints 2D animations from binary data for oil concentrations
     """
     import numpy as np
