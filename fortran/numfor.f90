@@ -9,7 +9,8 @@ integer, intent(in) :: nxc, nyc
 integer :: ii, i, iix, iiy, iv, it, ix, iy, dims(4), nv, nt, nx, ny
 integer, dimension(2*nxc+1) :: xdel
 integer, dimension(2*nyc+1) :: ydel
-real(kind=8), dimension(:,:,:,:), allocatable :: vCorr, rolled
+real(kind=8), intent(out), allocatable :: vCorr(:,:,:,:)
+real(kind=8), dimension(:,:,:,:), allocatable :: rolled
 real(kind=8), dimension(:,:), allocatable :: dummy, Mean
 real(kind=8), dimension(:,:,:), allocatable :: Mean3d
 
@@ -27,7 +28,7 @@ allocate(dummy(nx, ny))
 
 !------
 ! Calculate mean, var and correlation matrix for calculations
-!Mean = Vars.mean(axis=(2,3))
+! Mean = Vars.mean(axis=(2,3))
 Mean3d = sum(Vars, dim=4)/size(Vars, dim=4)
 Mean = sum(Mean3d, dim=3)/size(Mean3d, dim=3)
 !------
