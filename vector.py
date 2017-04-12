@@ -204,8 +204,9 @@ def cond_norm(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     # Calculate the correlation
     for iix, ix in enumerate(xdel):
         print('Calculating for x= {} of {}:'.format(iix,len(xdel)-1))
+        prerolled = _np.roll(Vars, ix, axis=2)
         for iiy, iy in enumerate(ydel):
-            rolled = _np.roll(_np.roll(Vars, ix, axis=2), iy, axis=3)
+            rolled = _np.roll(prerolled, iy, axis=3)
             for iv in range(nv):
                 for it in range(nt):
                     vCorr[iv,it,iix,iiy] = _np.mean(Vars[iv,it] * rolled[iv,it]) / (Mean[iv,it]**2.)

@@ -17,18 +17,7 @@ S = S.reshape(5,100,100,100)
 print(S.shape)
 
 #nf.correlate4d(
-t0=time()
-print('begin of first one')
-corr = nf.correlate4d(S, 5, 5, 2, 50)
-t1=time()
-print('begin of secnod one')
-corr2 = nf.correlate4d2(S, 5, 5, 2, 50)
-print('end of secnod one')
-t2=time()
-print(t1-t0)
-print(t2-t1)
-print((abs(corr-corr2)<0.0001).all())
-exit()
+corr = nf.correlate4d(S, 50, 50, 5, 100)
 corr = corr[0,0]
 print(corr.shape)
 
