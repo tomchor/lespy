@@ -1,43 +1,42 @@
-SUBROUTINE correlate4D(Vars, nxc, nyc, nv, nt, vCorr)
-! Correlates 4D array assuming that x, y are dims 3 and 4
-! Returns a 4D array with shape nv, nt, 2*nxc+1, 2*nyc+1
+SUBROUTINE correlate4D2(Vars, nxc, nyc, nt, nv, vCorr)
+! Correlates 4D array assuming that x, y are dims 1 and 2
+! Returns a 4D array with shape 2*nxc+1, 2*nyc+1, nt, nv
 IMPLICIT NONE
+INTEGER, PARAMETER  ::  dp = SELECTED_REAL_KIND (13)
 real(kind=8), intent(in), dimension(:,:,:,:) :: Vars
 real(kind=8) :: dummysize
 integer, intent(in) :: nxc, nyc
 integer :: ii, i, iix, iiy, iv, it, dims(4), nv, nt, nx, ny
 integer, dimension(2*nxc+1) :: xdel
 integer, dimension(2*nyc+1) :: ydel
-real(kind=8), intent(out) :: vCorr(nv, nt, 2*nxc+1, 2*nyc+1)
+!real(kind=8), intent(out) :: vCorr(nv, nt, 2*nxc+1, 2*nyc+1)
+real(kind=8), intent(out) :: vCorr(2*nxc+1, 2*nyc+1, nt, nv)
 real(kind=8), dimension(:,:,:,:), allocatable :: rolled, prerolled
 real(kind=8), dimension(:,:), allocatable :: Mean
 real(kind=8), dimension(:,:,:), allocatable :: Mean3d
 
 dims = shape(Vars)
-nx=dims(3)
-ny=dims(4)
+nx=dims(1)
+ny=dims(1)
 dummysize=nx*ny
-allocate(rolled(nv, nt, nx, ny))
-allocate(prerolled(nv, nt, nx, ny))
-allocate(Mean3d(nv, nt, nx))
-allocate(Mean(nv, nt))
+allocate(rolled(nx, ny, nt, nv))
+allocate(prerolled(nx, ny, nt, nv))
+allocate(Mean3d(ny, nt, nv))
+allocate(Mean(nt, nv))
 
 !------
 ! Calculate mean, var and correlation matrix for calculations
-! Mean = Vars.mean(axis=(2,3))
-Mean3d = sum(Vars, dim=4)/size(Vars, dim=4)
-Mean = sum(Mean3d, dim=3)/size(Mean3d, dim=3)
+Mean3d = sum(Vars, dim=1)/size(Vars, dim=1)
+Mean = sum(Mean3d, dim=1)/size(Mean3d, dim=1)
 !------
 
 !------
 ! Here we set the size of the correlation matrix
-! xdel = _np.arange(-nxc,nxc+1)
 ii=1
 do i=-nxc,+nxc
     xdel(ii)=i
     ii=ii+1
 enddo
-! ydel = _np.arange(-nyc,nyc+1)
 ii=1
 do i=-nyc,+nyc
     ydel(ii)=i
@@ -49,12 +48,12 @@ enddo
 ! Calculate the correlation
 do iiy=1,size(ydel)
     print*,'fortran loop:',iiy,' of', size(ydel)
-    prerolled = cshift(Vars, ydel(iiy), dim=4)
+    prerolled = cshift(Vars, ydel(iiy), dim=2)
     do iix=1,size(xdel)
-        rolled = cshift(prerolled, xdel(iix), dim=3)
-        forall (it=1:nt)
-            forall (iv=1:nv)
-                vCorr(iv,it,iix,iiy) = (sum(Vars(iv,it,:,:) * rolled(iv,it,:,:))/dummysize) / (Mean(iv,it)**2)
+        rolled = cshift(prerolled, xdel(iix), dim=1)
+        forall (iv=1:nv)
+            forall (it=1:nt)
+                vCorr(iix,iiy,it,iv) = (sum(Vars(:,:,it,iv) * rolled(:,:,it,iv))/dummysize) / (Mean(it,iv)**2)
             endforall
         endforall
     enddo
@@ -65,46 +64,46 @@ END SUBROUTINE
 
 
 
-SUBROUTINE correlate5D(Vars, nxc, nyc, nv, nt, ns, vCorr)
-! Correlates 4D array assuming that x, y are dims 3 and 4
-! Returns a 4D array with shape nv, nt, 2*nxc+1, 2*nyc+1
+
+SUBROUTINE correlate4D(Vars, nxc, nyc, nt, nv, vCorr)
+! Correlates 4D array assuming that x, y are dims 1 and 2
+! Returns a 4D array with shape 2*nxc+1, 2*nyc+1, nt, nv
 IMPLICIT NONE
-real(kind=8), intent(in), dimension(:,:,:,:,:) :: Vars
+INTEGER, PARAMETER  ::  dp = SELECTED_REAL_KIND (13)
+real(kind=8), intent(in), dimension(:,:,:,:) :: Vars
 real(kind=8) :: dummysize
-integer, intent(in) :: nxc, nyc, nv, nt, ns
-integer :: ii, i, iix, iiy, iv, it, is, dims(5), nx, ny
+integer, intent(in) :: nxc, nyc
+integer :: ii, i, iix, iiy, iv, it, dims(4), nv, nt, nx, ny
 integer, dimension(2*nxc+1) :: xdel
 integer, dimension(2*nyc+1) :: ydel
-real(kind=8), intent(out) :: vCorr(nv, nt, 2*nxc+1, 2*nyc+1, ns)
-real(kind=8), dimension(:,:,:,:,:), allocatable :: rolled, prerolled
-real(kind=8), dimension(:,:,:), allocatable :: Mean
-real(kind=8), dimension(:,:,:,:), allocatable :: Mean4d
+!real(kind=8), intent(out) :: vCorr(nv, nt, 2*nxc+1, 2*nyc+1)
+real(kind=8), intent(out) :: vCorr(2*nxc+1, 2*nyc+1, nt, nv)
+real(kind=8), dimension(:,:,:,:), allocatable :: rolled, prerolled
+real(kind=8), dimension(:,:), allocatable :: Mean
+real(kind=8), dimension(:,:,:), allocatable :: Mean3d
 
 dims = shape(Vars)
-nx=dims(3)
-ny=dims(4)
+nx=dims(1)
+ny=dims(1)
 dummysize=nx*ny
-allocate(rolled(nv, nt, nx, ny, ns))
-allocate(prerolled(nv, nt, nx, ny, ns))
-allocate(Mean4d(nv, nt, nx, ns))
-allocate(Mean(nv, nt, ns))
+allocate(rolled(nx, ny, nt, nv))
+allocate(prerolled(nx, ny, nt, nv))
+allocate(Mean3d(ny, nt, nv))
+allocate(Mean(nt, nv))
 
 !------
 ! Calculate mean, var and correlation matrix for calculations
-! Mean = Vars.mean(axis=(2,3))
-Mean4d = sum(Vars, dim=4)/size(Vars, dim=4)
-Mean = sum(Mean4d, dim=3)/size(Mean4d, dim=3)
+Mean3d = sum(Vars, dim=1)/size(Vars, dim=1)
+Mean = sum(Mean3d, dim=1)/size(Mean3d, dim=1)
 !------
 
 !------
 ! Here we set the size of the correlation matrix
-! xdel = _np.arange(-nxc,nxc+1)
 ii=1
 do i=-nxc,+nxc
     xdel(ii)=i
     ii=ii+1
 enddo
-! ydel = _np.arange(-nyc,nyc+1)
 ii=1
 do i=-nyc,+nyc
     ydel(ii)=i
@@ -115,15 +114,13 @@ enddo
 !---------
 ! Calculate the correlation
 do iiy=1,size(ydel)
-    print*,'fortran loop:', iiy,' of', size(ydel)
-    prerolled = cshift(Vars, ydel(iiy), dim=4)
+    print*,'fortran loop:',iiy,' of', size(ydel)
+    prerolled = cshift(Vars, ydel(iiy), dim=2)
     do iix=1,size(xdel)
-        rolled = cshift(prerolled, xdel(iix), dim=3)
-        forall (is=1:ns)
+        rolled = cshift(prerolled, xdel(iix), dim=1)
+        forall (iv=1:nv)
             forall (it=1:nt)
-                forall (iv=1:nv)
-                    vCorr(iv,it,iix,iiy,is) = (sum(Vars(iv,it,:,:,ns) * rolled(iv,it,:,:,ns))/dummysize) / (Mean(iv,it,ns)**2)
-                endforall
+                vCorr(iix,iiy,it,iv) = (sum(Vars(:,:,it,iv) * rolled(:,:,it,iv))/dummysize) / (Mean(it,iv)**2)
             endforall
         endforall
     enddo
@@ -131,5 +128,6 @@ enddo
 !---------
 
 END SUBROUTINE
+
 
 
