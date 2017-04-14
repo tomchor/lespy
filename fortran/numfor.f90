@@ -48,7 +48,7 @@ enddo
 !---------
 ! Calculate the correlation
 do iiy=1,size(ydel)
-    print*,iiy,' of', size(ydel)
+    print*,'fortran loop:',iiy,' of', size(ydel)
     prerolled = cshift(Vars, ydel(iiy), dim=4)
     do iix=1,size(xdel)
         rolled = cshift(prerolled, xdel(iix), dim=3)
@@ -115,7 +115,7 @@ enddo
 !---------
 ! Calculate the correlation
 do iiy=1,size(ydel)
-    print*,iiy,' of', size(ydel)
+    print*,'fortran loop:', iiy,' of', size(ydel)
     prerolled = cshift(Vars, ydel(iiy), dim=4)
     do iix=1,size(xdel)
         rolled = cshift(prerolled, xdel(iix), dim=3)

@@ -73,13 +73,13 @@ CLOSE(11)
 
 ustar(:)=SQRT(dat(:,1)**2+dat(:,2)**2) !u*^2
 ustar=SQRT(ustar) !u*
-print*,'chaging USTAR'
+print*,'chaging USTAR from', sum(ustar)/nt,' to', u_star
 ustar=u_star
 
 num=COUNT(tt(:)>=tini .AND. tt(:)<=tend)
-aux = SUM(ustar(:),MASK=(tt(:)>=tini .AND. tt(:)<=tend))/num*u_star
+aux = SUM(ustar(:),MASK=(tt(:)>=tini .AND. tt(:)<=tend))/num!*u_star
 
-PRINT*,'u_star_med = ',SUM(ustar)/nt*u_star
+PRINT*,'u_star_med = ',SUM(ustar)/nt!*u_star
 PRINT*,'u_star = ',aux
 
 

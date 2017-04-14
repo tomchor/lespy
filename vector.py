@@ -138,6 +138,69 @@ def correlate_2d(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
     return x, y, vCorr
 
+def fcond_norm(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
+    """
+    Calculates the conditional density
+
+    Parameters
+    ----------
+    Vars: np.array
+        4-dimensional array with the data. Dimensions are
+            0: index for variables (obviously separate calculation for each variable)
+            1: time (one correlation for each time as well)
+            2: x (used in the correlation)
+            3: y (used in the correlation)
+    simulation: lespy.Simulation
+    nyc, nyx: int, int
+        number of delta_ys and delta_xs to sample in each direction.
+        if nyc=10, for example. The x-dim of the output matrix will be 21.
+    dx, dy: float, float
+        resolution. Overwriten by simulation keyword.
+
+    Returns
+    -------
+    The ouput will be 4-dimensional. The dimensions will be
+    0: variables
+    1: time
+    2: delta_y
+    3: delta_x
+    """
+    import numpy as _np
+    from .fortran import numfor as nf
+    sim = simulation
+
+    #------
+    # Resolution and size
+    if dx==None and dy==None:
+        if sim!=None:
+            dx = sim.domain.dx
+            dy = sim.domain.dy
+        else:
+            dx, dy = 1., 1.
+    if len(Vars.shape)==4:
+        nv, nt, nx, ny = Vars.shape
+        ns=None
+    elif len(Vars.shape)==5:
+        nv, nt, nx, ny, ns = Vars.shape
+    #------
+
+    #------
+    # useful to get y and x sizes of the correlation array
+    if nxc==None:
+        nxc = int(_np.floor(nx/2))
+    if nyc==None:
+        nyc = int(_np.floor(ny/2))
+    #------
+
+    if ns:
+        vCorr = nf.correlate5d(Vars, nxc, nyc, nv, nt, ns)
+    else:
+        vCorr = nf.correlate4d(Vars, nxc, nyc, nv, nt)
+  
+    y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
+    return x, y, vCorr
+
+
 
 def cond_norm(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     """
