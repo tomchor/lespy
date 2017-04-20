@@ -36,8 +36,6 @@ def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5), condr=lambda x, 
     hist = hist/summ
     norm = np.histogram(r, bins=bins)[0]
     hist = hist/norm
-    #print(summ)
-    #print(hist)
     centers = (bins[:-1]+bins[1:])/2
     return hist, centers
 
@@ -56,24 +54,34 @@ def fromRadial(Hist, bins, window=None):
     return bins[np.array(maxima)]
 
 
-def radial_cdensity(Vars, simulation=None, nc=50, func=None):
+def radial_cdensity(Vars, simulation=None, nc=None, func=None):
+    """ Calculates the normalized conditional density as a function of radius """
     from . import vector, utils
     import numpy as np
     sim=simulation
     timelength=Vars.shape[1]
 
     if type(func)==type(None):
-        func=vector.cond_density
-    x, y, condC = func(Vars, simulation=sim, nxc=nc, nyc=nc)
+        func=vector.condnorm2d_fft
+    if type(nc)==type(None):
+        nc=sim.nx//2
 
+    try:
+        x, y, condC = func(Vars, simulation=sim, nxc=nc, nyc=nc)
+    except TypeError:
+        x, y, condC = func(Vars, simulation=sim)
+
+    print('Calculating from phi(x,y) condnorm to phi(r) ... ', end='')
     rCond = [ 
-    [ utils.radial_prof(condC[iv,it,:,:], simulation=sim, axes=(0,1))[1] for it in range(timelength) ] 
+    [ utils.radial_prof(condC[iv,it,:,:], simulation=sim, axes=(0,1))[1] for it in range(timelength) ]
        for iv in range(condC.shape[0]) ]
     rCond = np.asarray(rCond)
     Rs = utils.radial_prof(condC[0,0], simulation=sim, axes=(0,1))[0]
+    print('done')
     return Rs, rCond
 
 def power_law(r, rc, gamma):
+    """ Theoretical power law for the shape of the normalized conditional density """
     out = (r/rc)**gamma
     out[ out<=1. ] = 1.
     return out
@@ -94,7 +102,7 @@ def fromCond3(Rs, rnorm):
             plt.loglog(Rs, rnm0)
             plt.loglog(Rs, power_law(Rs, rc, gamma))
             plt.show()
-        print(rc, gamma)
+        #print(rc, gamma)
     return rcs, gammas
 
 

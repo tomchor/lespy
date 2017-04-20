@@ -55,9 +55,155 @@ def cluster_coeff(cons, simulation=None, axes=(0,1), total=None):
     return Ccoeff/total#, Ccoeff2/total
 
 
+def condnorm2d_fft(Vars, simulation=None, dx=None, dy=None):
+    """
+    Calculates 2D correlations in the arrays contained in Vars
 
-#from numba import jit
-#@jit(nopython=False)
+    Parameters
+    ----------
+    Vars: np.array
+        4-dimensional array with the data. Dimensions are
+            0: index for variables (obviously separate calculation for each variable)
+            1: time (one correlation for each time as well)
+            2: x (used in the correlation)
+            3: y (used in the correlation)
+    simulation: lespy.Simulation
+    nyc, nyx: int, int
+        number of delta_ys and delta_xs to sample in each direction.
+        if nyc=10, for example. The x-dim of the output matrix will be 21.
+    dx, dy: float, float
+        resolution. Overwriten by simulation keyword.
+
+    Returns
+    -------
+    The ouput will be 4-dimensional. The dimensions will be
+    0: variables
+    1: time
+    2: delta_y
+    3: delta_x
+    """
+    import numpy as _np
+    from numpy.fft import fft2, ifft2
+    sim = simulation
+
+    #------
+    # Resolution and size
+    if dx==None and dy==None:
+        if sim!=None:
+            dx = sim.domain.dx
+            dy = sim.domain.dy
+        else:
+            dx, dy = 1., 1.
+    nv, nt, nx, ny = Vars.shape
+    #------
+
+
+    #------
+    # useful to get y and x sizes of the correlation array
+    nxc = int(_np.floor(nx/2))
+    nyc = int(_np.floor(ny/2))
+    #------
+
+    #------
+    # Calculate mean, var and correlation matrix for calculations
+    vAvg = Vars.mean(axis=(2,3), keepdims=True)
+    Fluct = Vars - vAvg
+    vVar = Vars.var(axis=(2,3))
+    vCorr = _np.zeros((nv, nt, 2*nxc+1, 2*nyc+1))
+    #------
+
+    #---------
+    # Calculate the correlation
+    for iv in range(nv):
+        print('Calculating separately for variable {} of {}'.format(iv, nv-1))
+        for it in range(nt):
+            a=Vars[iv,it]
+            fftv=fft2(a)
+            aux = _np.roll(_np.roll(ifft2(fftv.conj()*fftv).real, nxc, axis=0), nyc, axis=1)
+            vCorr[iv,it,:-1,:-1] = (aux/(nx*ny))/a.mean()**2.
+            vCorr[iv,it,-1] = vCorr[iv,it,0]
+            vCorr[iv,it,:,-1] = vCorr[iv,it,:,0]
+    #---------
+  
+    y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
+    return x, y, vCorr
+
+
+
+def correlate2d_fft(Vars, simulation=None, dx=None, dy=None):
+    """
+    Calculates 2D correlations in the arrays contained in Vars
+
+    Parameters
+    ----------
+    Vars: np.array
+        4-dimensional array with the data. Dimensions are
+            0: index for variables (obviously separate calculation for each variable)
+            1: time (one correlation for each time as well)
+            2: x (used in the correlation)
+            3: y (used in the correlation)
+    simulation: lespy.Simulation
+    nyc, nyx: int, int
+        number of delta_ys and delta_xs to sample in each direction.
+        if nyc=10, for example. The x-dim of the output matrix will be 21.
+    dx, dy: float, float
+        resolution. Overwriten by simulation keyword.
+
+    Returns
+    -------
+    The ouput will be 4-dimensional. The dimensions will be
+    0: variables
+    1: time
+    2: delta_y
+    3: delta_x
+    """
+    import numpy as _np
+    from numpy.fft import fft2, ifft2
+    sim = simulation
+
+    #------
+    # Resolution and size
+    if dx==None and dy==None:
+        if sim!=None:
+            dx = sim.domain.dx
+            dy = sim.domain.dy
+        else:
+            dx, dy = 1., 1.
+    nv, nt, nx, ny = Vars.shape
+    #------
+
+
+    #------
+    # useful to get y and x sizes of the correlation array
+    nxc = int(_np.floor(nx/2))
+    nyc = int(_np.floor(ny/2))
+    #------
+
+    #------
+    # Calculate mean, var and correlation matrix for calculations
+    vAvg = Vars.mean(axis=(2,3), keepdims=True)
+    Fluct = Vars - vAvg
+    vVar = Vars.var(axis=(2,3))
+    vCorr = _np.zeros((nv, nt, 2*nxc+1, 2*nyc+1))
+    #------
+
+    #---------
+    # Calculate the correlation
+    for iv in range(nv):
+        print('Calculating separately for variable {} of {}'.format(iv, nv-1))
+        for it in range(nt):
+            a=Vars[iv,it]
+            fftv=fft2(a)
+            aux = _np.roll(_np.roll(ifft2(fftv.conj()*fftv).real, nxc, axis=0), nyc, axis=1)
+            vCorr[iv,it,:-1,:-1] = ((aux/(nx*ny))-a.mean()**2.)/a.var()
+            vCorr[iv,it,-1] = vCorr[iv,it,0]
+            vCorr[iv,it,:,-1] = vCorr[iv,it,:,0]
+    #---------
+  
+    y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
+    return x, y, vCorr
+
+
 def correlate_2d(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
     """
     Calculates 2D correlations in the arrays contained in Vars
@@ -177,25 +323,21 @@ def fcond_norm(Vars, simulation=None, dx=None, dy=None, nyc=None, nxc=None):
             dy = sim.domain.dy
         else:
             dx, dy = 1., 1.
-    if len(Vars.shape)==4:
-        nv, nt, nx, ny = Vars.shape
-        ns=None
-    elif len(Vars.shape)==5:
-        nv, nt, nx, ny, ns = Vars.shape
+    nv, nt, nx, ny = Vars.shape
     #------
 
     #------
     # useful to get y and x sizes of the correlation array
-    if nxc==None:
+    if type(nxc)==type(None):
         nxc = int(_np.floor(nx/2))
-    if nyc==None:
+    if type(nyc)==type(None):
         nyc = int(_np.floor(ny/2))
     #------
 
-    if ns:
-        vCorr = nf.correlate5d(Vars, nxc, nyc, nv, nt, ns)
-    else:
-        vCorr = nf.correlate4d(Vars, nxc, nyc, nv, nt)
+    #------
+    # The arrays have to be transposed and then back becayse of fortran loop efficiency
+    vCorr = nf.cond_density4d(Vars.transpose((2,3,1,0)), nxc, nyc, nt, nv).transpose((3,2,0,1))
+    #------
   
     y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
     return x, y, vCorr

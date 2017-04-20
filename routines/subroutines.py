@@ -104,7 +104,7 @@ def _readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=No
     #---------
     
 
-def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, read_just_pcon=False):
+def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, read_just_pcon=False, trim=False):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -230,9 +230,9 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     # Now we set up the output and re-scale one by one of they exist
     outlist = []
     if isinstance(u, np.ndarray):
-        u *= sim.u_scale
-        v *= sim.u_scale
-        w *=-sim.u_scale
+        u = u*sim.u_scale
+        v = v*sim.u_scale
+        w =-w*sim.u_scale
         outlist+=[u,v,w]
     if isinstance(T, np.ndarray):
         T = 2.*sim.t_init - T*sim.t_scale
@@ -241,6 +241,10 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
         pcon *= sim.pcon_scale
         outlist.append(pcon)
     #---------
+
+    if trim:
+        for i in range(len(outlist)):
+            outlist[i] = outlist[i][:sim.nx,:,:]
 
     #---------
     # We simplify if there's only one output
