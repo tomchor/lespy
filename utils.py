@@ -53,23 +53,27 @@ def nameParser(fname):
     from os import path
     fname = path.basename(fname)
 
-    if 'vel_sc' in fname:
-        ndtime = fname.strip('vel_sc').strip('.out')
-        return int(ndtime)
-
-    if 'vel_t' in fname:
-        ndtime = fname.strip('vel_t').strip('.out')
-        return int(ndtime)
-
-    if 'temp_t' in fname:
-        ndtime = fname.strip('temp_t').strip('.out')
-        return int(ndtime)
-
     if 'con_tt' in fname:
         import re
         numbers = re.split('[a-z. +_]',fname)
         ndtime, pcon_n, row, col = [ int(el) for el in numbers if el is not '' ]
         return int(ndtime), pcon_n, row, col
+
+    if 'vel_sc' in fname:
+        start='vel_sc'
+
+    if 'vel_t' in fname:
+        start='vel_t'
+
+    if 'temp_t' in fname:
+        start='temp_t'
+
+    if 'div_z0_t' in fname:
+        start='div_z0_t'
+
+
+    ndtime = fname.strip(start).strip('.out')
+    return int(ndtime)
 
 
 def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
@@ -185,8 +189,9 @@ def np2vtr(arrays, outname):
         for tstep in timestamps:
             tstep = int(tstep)
             print('Writing t=',tstep,'to vtr')
+            points={}
             for key, val in arrays.items():
-                points = { key:val.sel(time=tstep).values }
+                points.update({ key:val.sel(time=tstep).values })
             gridToVTK(outname.format(tstep), x,y,z, pointData = points)
 
     return
@@ -260,6 +265,36 @@ def get_dataarray(pcons, simulation=None, with_time=False):
             raise ValueError("Too many dimensions in array")
         return sim.DataArray(pcons, coords=coords)
     #----------
+
+
+def radial_prof3D(data, r=None, simulation=None, func=None):
+    """
+    Gets a radial profile around the center of `data`.
+
+    Parameters
+    ----------
+    data: np.array
+        3d array, shape = (nt, nx, ny)
+    r: np.array
+        matrix of distances from the point. Same shape as `data`.
+    func: function
+        defaults to np.mean
+    """
+    import numpy as np
+    if type(func)==type(None):
+        func=np.mean
+    if type(r)==type(None):
+        sim=simulation
+        nt, Lx1, Ly1 = (np.array(data.shape)).astype(int)
+        Lx, Ly = (np.array([Lx1, Ly1])/2).astype(int)
+        x = np.arange(-Lx,-Lx+Lx1,1)*sim.domain.dx
+        y = np.arange(-Ly,-Ly+Ly1,1)*sim.domain.dy
+        xx, yy = np.meshgrid(x, y)
+        r = np.sqrt(xx**2. + yy**2.)
+    uniq = np.unique(r)
+    prof = np.array([ np.mean(data[:, r==un ], axis=1) for un in uniq ]).T
+    return uniq, prof
+
 
 
 def radial_prof(data, r=None, simulation=None, func=None, axes=(0,1)):
@@ -359,6 +394,17 @@ def classbin(x, y, bins_number=100, function=_np.mean, xfunction=_np.mean, logsc
 
     return xsm, ysm
 
+
+def nearest(array, values, return_idx=False):
+    """ Searches for the nearest instances of values inside array """
+    import numpy as np
+    values=np.asarray(values)
+    array2, values2 = np.meshgrid(array, values)
+    idx = (np.abs(array2-values2)).argmin(axis=1)
+    if return_idx:
+        return idx
+    else:
+        return array[idx]
 
 
 

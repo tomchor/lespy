@@ -109,6 +109,105 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
 
 
 
+def animate(results, outname=None, which='xy', simulation=None, title='',
+        clim=[], logscale=True, axes=[], levels=None, nbins=6, interpolation=None, interval=50,
+        timelist=None, aspect='equal', cmap='viridis', clabel=None, verbose=True, cbar_format=None, dpi=120):
+    """
+    Prints 2D animations from binary data for oil concentrations
+
+    Each frame is done with the plane() function, and changes to that can be
+    passed to plane() with the plane_kw keyword
+
+    Parameters
+    ----------
+    resuts: np.array
+        3D array where first axis is time
+    outname: string
+        path for animation to be saved. If None, animation is returned.
+    which: string
+        either xz or xy. If it's anything else no label will be put and x and y axis will be nodes.
+    simulation: lespy.Simulation
+        simulation from where to retrieve information
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import matplotlib.animation as anim
+    from .utils import get_ticks
+
+    fig = plt.figure()
+    fig, ax = plt.subplots()
+    sim = simulation
+
+    results = np.asarray(results)
+    nt = results.shape[0]
+
+    #--------
+    # This sets the labels for each frame
+    if type(timelist)==type(None):
+        timelist = range(0, nt)
+    #--------
+
+    #------------
+    # Sets levels and ticks to use on the contour
+    ticklabels, formatting, levels_con = get_ticks(results, levels=levels, logscale=logscale, clim=clim, nbins=nbins)
+    xmin=sim.domain.x.min()
+    xmax=sim.domain.x.max()
+    ymin=sim.domain.y.min()
+    ymax=sim.domain.y.max()
+    #------------
+
+    if which=='xz':
+        results=results.transpose((0,2,1))[:,::-1]
+
+    #-------
+    # To take care of slightly negative or zero concentrations for plotting purposes
+    global im, tx
+    if logscale:
+        from matplotlib.colors import LogNorm
+        results = abs(results)
+        results[ results==0 ] += 1.e-20
+        im = plt.imshow(results[0], interpolation=interpolation, animated=True, cmap=cmap, origin='lower',
+                norm=LogNorm(vmin=levels_con.min(), vmax=levels_con.max()), extent=[xmin, xmax, ymin, ymax])
+    else:
+        im = plt.imshow(results[0], interpolation=interpolation, animated=True, cmap=cmap, origin='lower',
+                vmin=levels_con.min(), vmax=levels_con.max(), extent=[xmin, xmax, ymin, ymax])
+    tx = im.axes.annotate(timelist[0], (.8,.03), annotation_clip=False, xycoords='figure fraction')
+    im.axes.set_title(title)
+    #-------
+
+    def updatefig(it):
+        global im, tx
+        if verbose: print(timelist[it])
+        im.set_array(results[it])
+        tx.set_text(timelist[it])
+        return im, tx
+
+    #--------
+    # Doesnt waste space on the plot and sets aspect ratio to be equal
+    if which=='xz':
+        plt.xlabel('$\mathbf{x(m)}$')
+        plt.ylabel('$\mathbf{z(m)}$')
+    elif which=='xy':
+        plt.xlabel('$\mathbf{x(m)}$')
+        plt.ylabel('$\mathbf{y(m)}$')
+    cbar = plt.colorbar(label=clabel, format=cbar_format)
+    plt.gca().set_aspect(aspect)
+    plt.tight_layout()
+    #--------
+
+    #--------
+    # Animate and put the colorbar
+    animated = anim.FuncAnimation(fig, updatefig, frames=range(1,nt), interval=interval, blit=True)
+    #--------
+
+    if outname:
+        animated.save(outname, bitrate=-1, dpi=dpi, writer='ffmpeg')
+    else:
+        print('returning')
+        return animated
+
+
+
 def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title='',
         clim=[], logscale=True, axes=[], levels=None, nbins=6,
         timelist=None, aspect='equal', **kwargs):
@@ -171,7 +270,7 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
 
     #--------
     # Doesnt waste space on the plot and sets aspect ratio to be equal
-    plt.gca().set_aspect(aspect, 'datalim')
+    plt.gca().set_aspect(aspect)
     plt.tight_layout()
     #--------
 
@@ -183,7 +282,7 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
     #--------
 
     if outname:
-        animated.save(outname, bitrate=-1, dpi=120)
+        animated.save(outname, bitrate=-1, dpi=150, writer='ffmpeg')
     else:
         return animated
 
@@ -191,7 +290,7 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
 
 def plane(plane, outname=None, which='xy', simulation=None, 
         axes=[], levels=None, logscale=True, clim=[], title='',
-        set_cbar=True, cmap=None, xlim=[], ylim=[], aspect='equal', nbins=6):
+        set_cbar=True, cmap=None, xlim=[], ylim=[], aspect='equal', nbins=6, clabel=None):
     """
     Prints 2D animations from binary data for oil concentrations
     """
@@ -204,7 +303,7 @@ def plane(plane, outname=None, which='xy', simulation=None,
     if cmap:
         cmap_con = cm.get_cmap(cmap)
     else:
-        cmap_con = cm.get_cmap("jet")
+        cmap_con = cm.get_cmap("viridis")
 
     #------------
     # Sets levels and ticks to use on the contour
@@ -252,14 +351,15 @@ def plane(plane, outname=None, which='xy', simulation=None,
     aux = plt.contourf(X1, X2, plane_log, levels_con, cmap=cmap_con, extend='both')
     aux.ax.set_xlim(*xlim)
     aux.ax.set_ylim(*ylim)
+    aux.ax.grid()
     #-------
 
     #-------
     # If this is going to animation, cbar shoudnt be set here
     if set_cbar:
-        cbar = plt.colorbar(aux, ticks = levels_con, extend='both')
+        cbar = plt.colorbar(aux, ticks = levels_con, extend='both', label=clabel)
         cbar.ax.set_yticklabels(formatting(ticklabels))
-        plt.gca().set_aspect(aspect, 'datalim')
+        plt.gca().set_aspect(aspect)
         plt.tight_layout()
     #-------
 
@@ -275,67 +375,91 @@ def plane(plane, outname=None, which='xy', simulation=None,
 
 
 
-def _pcon_side_animation(bins, outname=None, simulation=None,
-        n_pcon=0, xz_func=lambda x: x.mean(axis=1),
-        xy_func=lambda x: x.mean(axis=2), trim_x=True):
+def plane2(plane, outname=None, which='xy', simulation=None, interpolation=None,
+        axes=[], levels=None, logscale=False, clim=[], title='',
+        set_cbar=True, cmap='viridis', xlim=[], ylim=[], aspect='equal', nbins=6, clabel=''):
     """
-    obsolete I think
     Prints 2D animations from binary data for oil concentrations
     """
     import numpy as np
     import matplotlib.pyplot as plt
-    import matplotlib.animation as anim
-    from matplotlib import colors
-    from . import routines
-
-    #fig = plt.figure()
-    fig, axes = plt.subplots(2, sharex=True, figsize=(6,12))
-    fig.tight_layout()
-    axes[0].set_aspect('equal')
-    axes[1].set_aspect('equal')
-    snaps = []
+    from .utils import get_ticks
 
     sim = simulation
-    if trim_x:
-        xar = np.arange(0,sim.domain.Nx)*sim.domain.dx
+
+    #------------
+    # Sets levels and ticks to use on the contour
+    ticklabels, formatting, levels_con = get_ticks(plane, levels=levels, logscale=logscale, clim=clim, nbins=nbins)
+    vmin=levels_con.min()
+    vmax=levels_con.max()
+    #------------
+
+    #------------
+    # Sets x y grid
+    if axes:
+        ax1, ax2 = axes
     else:
-        xar = np.arange(0,sim.domain.Ld)*sim.domain.dx
-    yar = (np.arange(0,sim.ny)*sim.domain.dy).reshape(-1,1)
-    zar = (np.arange(0,sim.nz_tot)*sim.domain.dz).reshape(-1,1)
-
-
-    for fname in bins:
-        print(fname)
-        u,v,w,T,pcon = routines.readBinary(fname, simulation=sim)
-        if trim_x:
-            pcon = pcon[:-2,:,:, n_pcon]
+        if simulation:
+            if which == 'xy':
+                ax1 = sim.domain.x
+                ax2 = sim.domain.y
+            elif which == 'xz':
+                ax1 = sim.domain.x
+                ax2 = sim.domain.z
         else:
-            pcon = pcon[:,:,:, n_pcon]
+            ax1 = np.arange(0, plane.shape[0])
+            ax2 = np.arange(0, plane.shape[1])
+    xmin=ax1.min()
+    ymin=ax2.min()
+    xmax=ax1.max()
+    ymax=ax2.max()
+    #------------
 
-        #-------
-        # To take care of slightly negative or zero concentrations for plotting purposes
-        pcon[ pcon==0 ] += 1.e-20
-        pcon = abs(pcon)
-        #-------
+    #----------
+    # Sets labels latex style (no label is set if which is not given
+    if which=='xz':
+        plt.xlabel('$\mathbf{x(m)}$')
+        plt.ylabel('$\mathbf{z(m)}$')
+    elif which=='xy':
+        plt.xlabel('$\mathbf{x(m)}$')
+        plt.ylabel('$\mathbf{y(m)}$')
+    #----------
 
-        flat1 = xz_func(pcon)
-        axes[1].set_xlabel('x')
-        axes[1].set_ylabel('z')
-        a2 = -zar
-        a1 = xar
-        im1 = axes[1].pcolormesh(a1, a2, flat1.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1))
+    #----------
+    # To plot logscale, we must do it manually
+    if logscale:
+        from matplotlib.colors import LogNorm
+        im = plt.imshow(plane, interpolation=interpolation, animated=True, cmap=cmap, origin='lower',
+                                norm=LogNorm(vmin=vmin, vmax=vmax), extent=[xmin, xmax, ymin, ymax])
+    else:
+        im = plt.imshow(plane, interpolation=interpolation, animated=True, cmap=cmap, origin='lower',
+                                vmin=vmin, vmax=vmax, extent=[xmin, xmax, ymin, ymax])
+    #----------
 
-        flat2 = xy_func(pcon)
-        axes[0].set_xlabel('x')
-        axes[0].set_ylabel('y')
-        a1 = xar
-        a2 = yar
-        im2 = axes[0].pcolormesh(a1, a2, flat2.T, norm=colors.LogNorm(vmin=1.e-4,vmax=1.e-1))
-        snaps.append([im1, im2])
+    #-------
+    # Actual plotting is done here
+    im.axes.set_xlim(*xlim)
+    im.axes.set_ylim(*ylim)
+    im.axes.grid()
+    #-------
 
-    animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True, repeat_delay=300)
+    #-------
+    # If this is going to animation, cbar shoudnt be set here
+    if set_cbar:
+        cbar = plt.colorbar(label=clabel)
+    plt.gca().set_aspect(aspect)
+    plt.title(title)
+    plt.tight_layout()
+    #-------
 
     if outname:
-        animated.save(outname)
+        print('saving figure...', end='')
+        plt.savefig(outname, bbox_inches='tight')
+        plt.close()
+        print('done.')
+        return
     else:
-        return animated
+        return im
+
+
+

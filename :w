@@ -92,37 +92,6 @@ def power_law(r, rc, gamma):
     out[ out<=1. ] = 1.
     return out
 
-def fromCond4(Rs, rNorm, p0=(100., -1)):
-    """
-    Must be a 3D array with index 2 being radian conditional density and
-    index 0 and 1 being whatever
-    """
-    import numpy as np
-    from scipy.optimize import curve_fit
-    Rs=Rs[1:]
-    rNorm=rNorm[:,:,1:]
-    Lcs = []
-    Gcs = []
-    for iv, rnm0 in enumerate(rNorm):
-        Lcs.append([])
-        Gcs.append([])
-        for it, rnm1 in enumerate(rnm0):
-            rc, gamma = curve_fit(power_law, Rs, rnm1, p0=p0, maxfev=1000)[0]
-            Lcs[iv].append(rc)
-            Gcs[iv].append(gamma)
-            #------
-            # In case we want to see what's happening
-            if 0:
-                from matplotlib import pyplot as plt
-                plt.close()
-                plt.loglog(Rs, rnm0)
-                plt.loglog(Rs, power_law(Rs, rc, gamma))
-                plt.show()
-            #print(rc, gamma)
-            #------
-    return np.array(Lcs), np.array(Gcs)
-
-
 def fromCond3(Rs, rnorm, p0=(10., -1)):
     """
     Must be a 2D array with indexes 1 being radian conditional density and
@@ -160,16 +129,14 @@ def get_L(Vars, simulation=None, func=None, p0=(10, -1)):
         func=vector.condnorm2d_fft
     Rs, Phi = radial_cdensity(Vars, simulation=sim, func=func)
 
-#    Gammas=[]
-#    Ls=[]
-#    for iv in range(Phi.shape[0]):
-#        Ls_rc, gammas = fromCond3(Rs, Phi[iv])
-#        Gammas.append(gammas)
-#        Ls.append(Ls_rc)
-#    Gammas=np.array(Gammas)
-#    Ls=np.array(Ls)
-
-    Ls, Gammas = fromCond4(Rs, Phi)
+    Gammas=[]
+    Ls=[]
+    for iv in range(Phi.shape[0]):
+        Ls_rc, gammas = fromCond3(Rs, Phi[iv])
+        Gammas.append(gammas)
+        Ls.append(Ls_rc)
+    Gammas=np.array(Gammas)
+    Ls=np.array(Ls)
 
     return Ls, Gammas
 
@@ -195,50 +162,32 @@ def from_2Dfft(R1, R2, P, cut=250):
     return 1./K
 
 
-def L_from_fft(data, simulation=None, what='L'):
+def L_from_fft(data, simulation=None, norm=True, bi=False):
     """ """
     import numpy.fft as FFT
     import numpy as np
     from . import utils
     sim=simulation
-    S = FFT.fftshift
 
     nv, nt, nx, ny = data.shape
     data = data-data.mean(axis=(-2,-1), keepdims=True)
-    fx=S(np.fft.fftfreq(nx, d=sim.domain.dx))
-    fy=S(np.fft.fftfreq(ny, d=sim.domain.dy))
+    fx=np.fft.fftfreq(nx,d=sim.domain.dx)
+    fy=np.fft.rfftfreq(ny,d=sim.domain.dy)
     R2,R1=np.meshgrid(fy,fx)
-    R0=np.sqrt(R1**2+R2**2)
+    R=np.sqrt(R1**2+R2**2)#.reshape(1, 1, *R1.shape)
+    R = np.tile(R, (nv, nt, 1, 1))
 
-    fftv = FFT.fft2(data, axes=(-2,-1))
-    pspec = S((fftv*fftv.conj()).real, axes=(-2,-1))
+    fftv = FFT.rfft2(data, axes=(-2,-1))
+    pspec = (fftv*fftv.conj()).real
+#    print(R.shape, pspec.shape)
+    K = np.average(R, weights=pspec, axis=(-2,-1))
+#            freqs, rpspec = utils.radial_prof(pspec, r=R)
+#            if norm:
+#                rpspec/=np.max(rpspec)
 
-    if what=='radial':
-        radR, radP = [[]]*nv, [[]]*nv
+    if bi:
         for iv in range(nv):
             for it in range(nt):
-                radr, radp = utils.radial_prof(pspec[iv, it], r=R0)
-                radR[iv].append(radr)
-                radP[iv].append(radp)
-        return np.array(radR), np.array(radP)
-
-    if what=='bi':
-        return R1, R2, pspec
-
-    if what=='integral':
-        R = np.tile(R0, (nv, nt, 1, 1))
-        R = np.ma.masked_where(R==0., R)
-        L = np.average(1./R, weights=pspec, axis=(-2,-1))
-        return L
-
-    if what=='max':
-        peak = pspec.reshape(nv, nt, -1).argmax(axis=-1)
-        K1 = R1.flatten()[peak]
-        K2 = R1.flatten()[peak]
-        return 1./np.sqrt(K1**2 + K2**2)
-
+        return R, pspec
     else:
-        R = np.tile(R0, (nv, nt, 1, 1))
-        K = np.average(R, weights=pspec, axis=(-2,-1))
         return 1./K
-

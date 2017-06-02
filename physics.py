@@ -94,6 +94,20 @@ def Hoennikker(simulation, alpha=alpha_w, g=g, rho=rho_w, cp=cp_w):
     return None
 
 
-
 def droppletTimeScale(diam, rho_d=859.870, mu=1.08e-3):
     return (rho_d + rho_w/2.)*diam**2./(18.*mu)
+
+
+def get_zi(wT, xy_axis=(1,2), simulation=None):
+    """ Calculates the inversion depth as a function of time """
+    import numpy as np
+    wT = np.asarray(wT)
+    z_idx = np.argmin(wT.mean(axis=xy_axis), axis=1)
+    if simulation==None:
+        return z_idx
+    else:
+        return simulation.domain.z[z_idx]
+
+
+
+

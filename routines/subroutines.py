@@ -150,6 +150,7 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     # Useful for later. Might as well do it just once here
     u,v,w,T,pcon = [None]*5
     u_nd = domain.ld*domain.ny*domain.nz_tot
+    u_nd2 = domain.ld*domain.ny
     if read_pcon or read_just_pcon:
         if n_con==None:
             n_con = sim.n_con
@@ -180,6 +181,26 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
         u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
         v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
         w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
+    #---------
+
+    #---------
+    # Spectra
+    elif path.basename(fname).startswith('spec_uvwT'):
+        ndz=(domain.nx//2)*(domain.nz_tot-1)
+        u = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((domain.nx//2, domain.nz_tot-1), order='F')
+        v = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((domain.nx//2, domain.nz_tot-1), order='F')
+        w = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((domain.nx//2, domain.nz_tot-1), order='F')
+        T = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((domain.nx//2, domain.nz_tot-1), order='F')
+        return u,v,w,T
+    #---------
+
+
+    #---------
+    # Straightforward
+    elif path.basename(fname).startswith('div_z0_t'):
+        u = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')/sim.inversion_depth
+        v = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')/sim.inversion_depth
+        w =-np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')/sim.inversion_depth
     #---------
 
     #---------

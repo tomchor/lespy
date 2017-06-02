@@ -115,7 +115,7 @@ def condnorm2d_fft(Vars, simulation=None, dx=None, dy=None):
     #---------
     # Calculate the correlation
     for iv in range(nv):
-        print('Calculating separately for variable {} of {}'.format(iv, nv-1))
+        print('Calculating separately for variable {} of {}...'.format(iv, nv-1), end='')
         for it in range(nt):
             a=Vars[iv,it]
             fftv=fft2(a)
@@ -123,9 +123,12 @@ def condnorm2d_fft(Vars, simulation=None, dx=None, dy=None):
             vCorr[iv,it,:-1,:-1] = (aux/(nx*ny))/a.mean()**2.
             vCorr[iv,it,-1] = vCorr[iv,it,0]
             vCorr[iv,it,:,-1] = vCorr[iv,it,:,0]
+        print('done')
     #---------
   
+    print('calculating grid...', end='')
     y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
+    print('done')
     return x, y, vCorr
 
 
@@ -190,7 +193,7 @@ def correlate2d_fft(Vars, simulation=None, dx=None, dy=None):
     #---------
     # Calculate the correlation
     for iv in range(nv):
-        print('Calculating separately for variable {} of {}'.format(iv, nv-1))
+        print('Calculating separately for variable {} of {}...'.format(iv, nv-1), end='')
         for it in range(nt):
             a=Vars[iv,it]
             fftv=fft2(a)
@@ -198,6 +201,7 @@ def correlate2d_fft(Vars, simulation=None, dx=None, dy=None):
             vCorr[iv,it,:-1,:-1] = ((aux/(nx*ny))-a.mean()**2.)/a.var()
             vCorr[iv,it,-1] = vCorr[iv,it,0]
             vCorr[iv,it,:,-1] = vCorr[iv,it,:,0]
+        print('done')
     #---------
   
     y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]

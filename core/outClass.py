@@ -17,7 +17,7 @@ class Output(object):
 
         #----------
         # We use pandas to organize all the files (very handy)
-        opfiles = pd.DataFrame(columns=['vel_sc', 'con_tt', 'temp_t', 'vel_t'])
+        opfiles = pd.DataFrame(columns=['vel_sc', 'con_tt', 'temp_t', 'vel_t', 'div_z0_t'])
         #----------
 
         #----------
@@ -58,6 +58,16 @@ class Output(object):
             ndtime = utils.nameParser(fname)
             opfiles.loc[ndtime, 'vel_t'] = fname
         #----------
+
+        #----------
+        # list div_z0_t files
+        div_z0_t = sorted(glob(path.join(oppath, 'div_z0_t*out')))
+        if div_z0_t: print('div_z0_t', end=' ')
+        for fname in div_z0_t:
+            ndtime = utils.nameParser(fname)
+            opfiles.loc[ndtime, 'div_z0_t'] = fname
+        #----------
+
 
         #----------
         # list con_tt files (each entry is a list, since there can be lots for each timestep
@@ -354,6 +364,93 @@ class Output(object):
         #---------
 
         return u,v,w,T
+
+
+
+    def compose_divs(self, times=None, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True):
+        """
+        Puts together everything in time, but can't compose endless patches. Output
+        matrices indexes are
+        time, x, y, z
+
+        Parameters
+        ----------
+        self: lp.Output
+        times: slice
+            slice with which times to read.
+        simulation: lp.Simulation
+            to be used as base
+        trim: bool
+            whether to trim two extra points in x axis
+        """
+        from .. import utils, routines
+        import numpy as np
+        import pandas as pd
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError("You need to provide a simulation object here")
+
+        #--------------
+        # Only these types of file we deal with here
+        labels = ['div_z0_t']
+        #--------------
+
+        #--------------
+        # Adjust intervals
+        if type(times)!=type(None):
+            bins = self.binaries.loc[times, labels].dropna(axis=1, how='all')
+        else:
+            if t_end is None:
+                bins = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+            else:
+                bins = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+        #--------------
+
+        #---------
+        # Definition of output with time, x, y[ and z]
+        print('Creating 4 arrays of {}, {}, {}...'.format(len(bins), sim.domain.ld, sim.ny), end='')
+        du = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
+        dv = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
+        dw = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
+        print(' done.')
+        #---------
+
+        #---------
+        # Iterates on the timestamps to put the time-indexed array together
+        for i, tstep in enumerate(bins.index):
+            iSeries = bins.loc[tstep]
+
+            #---------
+            # Iterate between vel_sc, vel_t and temp_t
+            # Currently only works with vel_sc (I think)
+            for col in iSeries:
+                if not isinstance(col, str): continue
+                print(col)
+                aux = routines.readBinary2(col, simulation=sim, read_pcon=False)
+                ui,vi,wi = aux
+                du[i] = ui
+                dv[i] = vi
+                dw[i] = wi
+            #---------
+        #---------
+
+        #---------
+        # Trims the extra node(s) at the end of the x coordinate
+        if trim:
+            du = du[:, :sim.nx]
+            dv = dv[:, :sim.nx]
+            dw = dw[:, :sim.nx]
+        #---------
+
+        #---------
+        # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        if as_dataarray:
+            du, dv, dw = utils.get_dataarray([du, dv, dw], simulation=sim, with_time=bins.index.tolist())
+        #---------
+
+        return du, dv, dw
 
 
     def _compose_par(self, nprocs=10, t_ini=None, t_end=None, **kwargs):
