@@ -195,7 +195,7 @@ class Output(object):
                     print(i, ndtime, n_con)
                     for patch in cons.loc[ndtime][n_i]:
                         ndtime, ncon, row, col = utils.nameParser(patch)
-                        con = routines.readBinary2(patch, simulation=sim, read_pcon=True, read_just_pcon=True)
+                        con = routines.readBinary2(patch, simulation=sim, read_pcon=True, read_just_pcon=True, trim=trim)
         
                         min_yj = (row - min(rows))*sim.ny
                         max_yj = min_yj + sim.ny
@@ -322,7 +322,7 @@ class Output(object):
             for col in iSeries:
                 if not isinstance(col, str): continue
                 print(col)
-                aux = routines.readBinary2(col, simulation=sim, read_pcon=False)
+                aux = routines.readBinary2(col, simulation=sim, read_pcon=False, trim=trim)
 
                 #------
                 # Reduce z coordinate if theres a z_function
@@ -428,7 +428,7 @@ class Output(object):
             for col in iSeries:
                 if not isinstance(col, str): continue
                 print(col)
-                aux = routines.readBinary2(col, simulation=sim, read_pcon=False)
+                aux = routines.readBinary2(col, simulation=sim, read_pcon=False, trim=trim)
                 ui,vi,wi = aux
                 du[i] = ui
                 dv[i] = vi

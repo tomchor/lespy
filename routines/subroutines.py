@@ -104,7 +104,7 @@ def _readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=No
     #---------
     
 
-def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, read_just_pcon=False, trim=False):
+def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, read_just_pcon=False, trim=True):
     """
     Reads a binary file according to the simulation or domain object passed
 
