@@ -186,11 +186,8 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     #---------
     # Spectra
     elif path.basename(fname).startswith('spec_uvwT'):
-        ndz=(domain.nx//2)*(domain.nz_tot-1)
-        u = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((domain.nx//2, domain.nz_tot-1), order='F')
-        v = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((domain.nx//2, domain.nz_tot-1), order='F')
-        w = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((domain.nx//2, domain.nz_tot-1), order='F')
-        T = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((domain.nx//2, domain.nz_tot-1), order='F')
+        ndz=4*(domain.nx//2)*(domain.nz_tot-1)
+        u,v,w,T = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((4,domain.nx//2, domain.nz_tot-1), order='F')
         return u,v,w,T
     #---------
 
