@@ -108,6 +108,18 @@ def get_zi(wT, xy_axis=(1,2), simulation=None):
     else:
         return simulation.domain.z[z_idx]
 
+def w_star(simulation=None, zi=None, wt_s=None, t_init=None):
+    """Calculates the convective scale"""
+    sim=simulation
+    if type(zi)==type(None):
+        zi=sim.inversion_depth
+    if type(wt_s)==type(None):
+        wt_s=sim.wt_s
+    if type(t_init)==type(None):
+        t_init=sim.t_init
+    w_star = (g*wt_s*zi/t_init)**(1./3.)
+    return w_star
+
 
 
 

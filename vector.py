@@ -57,7 +57,7 @@ def cluster_coeff(cons, simulation=None, axes=(0,1), total=None):
 
 def condnorm2d_fft(Vars, simulation=None, dx=None, dy=None):
     """
-    Calculates 2D correlations in the arrays contained in Vars
+    Calculates 2D (modified) correlations in the arrays contained in Vars
 
     Parameters
     ----------

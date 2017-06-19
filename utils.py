@@ -89,8 +89,8 @@ def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
             if not clim:
                 logarray = np.log10(np.abs(array))
                 clim = (np.nanpercentile(logarray, 20), np.nanpercentile(logarray, 95))
-            levels_con = np.linspace(clim[0], clim[1], nseps)
-            ticklabels = np.power(10.0, levels_con)
+            levels_con = 10**np.linspace(clim[0], clim[1], nseps)
+            ticklabels = levels_con#np.power(10.0, levels_con)
         else:
             if not clim:
                 #clim=(float(array.min()), float(array.max()))

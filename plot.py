@@ -110,8 +110,8 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
 
 
 def animate(results, outname=None, which='xy', simulation=None, title='',
-        clim=[], logscale=True, axes=[], levels=None, nbins=6, interpolation=None, interval=50,
-        timelist=None, aspect='equal', cmap='viridis', clabel=None, verbose=True, cbar_format=None, dpi=120):
+        clim=[], logscale=False, axes=[], levels=None, nbins=6, interpolation=None, interval=50,
+        timelist=None, aspect='equal', cmap='viridis', clabel='', verbose=True, cbar_format=None, dpi=120):
     """
     Prints 2D animations from binary data for oil concentrations
 
@@ -152,12 +152,15 @@ def animate(results, outname=None, which='xy', simulation=None, title='',
     ticklabels, formatting, levels_con = get_ticks(results, levels=levels, logscale=logscale, clim=clim, nbins=nbins)
     xmin=sim.domain.x.min()
     xmax=sim.domain.x.max()
-    ymin=sim.domain.y.min()
-    ymax=sim.domain.y.max()
     #------------
 
     if which=='xz':
         results=results.transpose((0,2,1))[:,::-1]
+        ymin=sim.domain.z.min()
+        ymax=sim.domain.z.max()
+    else:
+        ymin=sim.domain.y.min()
+        ymax=sim.domain.y.max()
 
     #-------
     # To take care of slightly negative or zero concentrations for plotting purposes

@@ -293,21 +293,24 @@ class Output(object):
             else:
                 bins = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
         #--------------
-
+        if trim:
+            Nx=sim.domain.nx
+        else:
+            Nx=sim.domain.ld
         #---------
         # Definition of output with time, x, y[ and z]
         if apply_to_z:
-            print('Creating 4 arrays of {}, {}, {}...'.format(len(bins), sim.domain.ld, sim.ny), end='')
-            u = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-            v = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-            w = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-            T = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
+            print('Creating 4 arrays of {}, {}, {}...'.format(len(bins), Nx, sim.ny), end='')
+            u = np.full((len(bins), Nx, sim.ny), np.nan)
+            v = np.full((len(bins), Nx, sim.ny), np.nan)
+            w = np.full((len(bins), Nx, sim.ny), np.nan)
+            T = np.full((len(bins), Nx, sim.ny), np.nan)
         else: 
-            print('Creating 4 arrays of {}, {}, {}, {}...'.format(len(bins), sim.domain.ld, sim.ny, sim.nz_tot), end='')
-            u = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
-            v = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
-            w = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
-            T = np.full((len(bins), sim.domain.ld, sim.ny, sim.nz_tot), np.nan)
+            print('Creating 4 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, sim.nz_tot), end='')
+            u = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
+            v = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
+            w = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
+            T = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
         print(' done.')
         #---------
 

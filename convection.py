@@ -15,6 +15,8 @@ def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5), condr=lambda x, 
     y = np.arange(-Ly,-Ly+Ly1,1)*sim.domain.dy
     xx, yy = np.meshgrid(x, y)
     r = np.sqrt(xx**2. + yy**2.)
+    print(r.argmin())
+    exit()
 
     if type(bins)==type(None):
         bins = np.arange(0, 700, 10)
@@ -169,7 +171,7 @@ def get_L(Vars, simulation=None, func=None, p0=(10, -1)):
 #    Gammas=np.array(Gammas)
 #    Ls=np.array(Ls)
 
-    Ls, Gammas = fromCond4(Rs, Phi)
+    Ls, Gammas = fromCond4(Rs, Phi, p0=p0)
 
     return Ls, Gammas
 
@@ -194,6 +196,53 @@ def from_2Dfft(R1, R2, P, cut=250):
     K=np.average(R, weights=P)
     return 1./K
 
+
+def L_from_fft2(data, simulation=None, what='L'):
+    """ """
+    import numpy.fft as FFT
+    import numpy as np
+    from . import utils
+    sim=simulation
+    S = FFT.fftshift
+
+    nv, nt, nx, ny = data.shape
+    data = data-data.mean(axis=(-2,-1), keepdims=True)
+    fx=S(np.fft.fftfreq(nx, d=sim.domain.dx))
+    fy=S(np.fft.fftfreq(ny, d=sim.domain.dy))
+    R2,R1=np.meshgrid(fy,fx)
+    R0=np.sqrt(R1**2+R2**2)
+
+    fftv = FFT.fft2(data, axes=(-2,-1))
+    pspec = R0*S((fftv*fftv.conj()).real, axes=(-2,-1))
+
+    if what=='radial':
+        radR, radP = [[]]*nv, [[]]*nv
+        for iv in range(nv):
+            for it in range(nt):
+                radr, radp = utils.radial_prof(pspec[iv, it], r=R0)
+                radR[iv].append(radr)
+                radP[iv].append(radp)
+        return np.array(radR), np.array(radP)
+
+    if what=='bi':
+        return R1, R2, pspec
+
+    if what=='integral':
+        R = np.tile(R0, (nv, nt, 1, 1))
+        R = np.ma.masked_where(R==0., R)
+        L = np.average(1./R, weights=pspec, axis=(-2,-1))
+        return L
+
+    if what=='max':
+        peak = pspec.reshape(nv, nt, -1).argmax(axis=-1)
+        K1 = R1.flatten()[peak]
+        K2 = R1.flatten()[peak]
+        return 1./np.sqrt(K1**2 + K2**2)
+
+    else:
+        R = np.tile(R0, (nv, nt, 1, 1))
+        K = np.average(R, weights=pspec, axis=(-2,-1))
+        return 1./K
 
 def L_from_fft(data, simulation=None, what='L'):
     """ """
