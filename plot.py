@@ -109,7 +109,7 @@ def check_avgs(outputs, t_ini, t_end, savefigs=False, return_df=True, simulation
 
 
 
-def animate(results, outname=None, which='xy', simulation=None, title='',
+def animate(results, outname=None, which='xy', simulation=None, title='', grid=True,
         clim=[], logscale=False, axes=[], levels=None, nbins=6, interpolation=None, interval=50,
         timelist=None, aspect='equal', cmap='viridis', clabel='', verbose=True, cbar_format=None, dpi=120):
     """
@@ -268,6 +268,7 @@ def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title=
                 simulation=simulation, logscale=logscale, set_cbar=False, **kwargs)
         timelabel = aux.ax.annotate(i, (.8,.05), annotation_clip=False, xycoords='figure fraction')
         aux.collections.append(timelabel)
+        aux.grid(grid)
         snaps.append(aux.collections)
     fig.axes[0].set_title(title)
 

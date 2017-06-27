@@ -414,9 +414,14 @@ class Output(object):
         #---------
         # Definition of output with time, x, y[ and z]
         print('Creating 4 arrays of {}, {}, {}...'.format(len(bins), sim.domain.ld, sim.ny), end='')
-        du = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-        dv = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-        dw = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
+        if trim:
+            du = np.full((len(bins), sim.domain.nx, sim.ny), np.nan)
+            dv = np.full((len(bins), sim.domain.nx, sim.ny), np.nan)
+            dw = np.full((len(bins), sim.domain.nx, sim.ny), np.nan)
+        else:
+            du = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
+            dv = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
+            dw = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
         print(' done.')
         #---------
 

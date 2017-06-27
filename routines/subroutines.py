@@ -262,7 +262,7 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
 
     if trim:
         for i in range(len(outlist)):
-            outlist[i] = outlist[i][:sim.nx,:,:]
+            outlist[i] = outlist[i][:sim.nx]
 
     #---------
     # We simplify if there's only one output
