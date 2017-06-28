@@ -2,6 +2,8 @@
 class Simulation(object):
     """class for simulation parameters"""
     def __init__(self, from_file=None, domain=None, timelength=None, u_scale=None, inversion_depth=None, **kwargs):
+        import numpy as np
+        from .. import physics
         #------------
         # Start simulation from param.nml file
         if from_file!=None:
@@ -24,6 +26,8 @@ class Simulation(object):
         #------------
 
         self.w_star = self.get_w_star()
+        self.vel_settling=np.array(self.vel_settling)
+        self.droplet_sizes=physics.get_dropletSize(self.vel_settling, nominal=True, nowarning=True).astype(int)
 
 
     def check(self, full=True):

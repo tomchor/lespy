@@ -24,7 +24,7 @@ units['nu_a'] = 'm**2/s'
 
 def riseVelocity(diam, rho_d=859.870, rho_w=rho_w, mu=mu_w):
     """
-    Calculates the droplet rise velocity for a quiescent fluid
+    Calculates the droplet rise velocity for a droplet of diam (in microns!) in a quiescent fluid
 
     Parameters
     ----------
@@ -43,7 +43,21 @@ def riseVelocity(diam, rho_d=859.870, rho_w=rho_w, mu=mu_w):
         in meters/second
     """
     delta_rho = rho_w - rho_d
-    return 1e-12*delta_rho*g*(diam**2.)/(18.*mu)
+    return delta_rho*g*(diam**2.)/(18.*mu)
+
+
+def get_dropletSize(wr, rho_d=859.870, rho_w=rho_w, mu=mu_w, nominal=False, nowarning=False):
+    """
+    Calculates the droplet size in micrometers for a given rise velocity
+    """
+    import numpy as np
+    delta_rho = rho_w - rho_d
+    diam = np.sqrt(18*mu*wr/(delta_rho*9.81))
+    if nominal:
+        if not nowarning: print('In micrometers!')
+        return np.around(1e6*diam, decimals=0)
+    else:
+        return diam
 
 
 def get_Ustokes(amp, omega, g=g):

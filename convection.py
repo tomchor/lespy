@@ -85,7 +85,7 @@ def power_law(r, rc, gamma):
 
 
 
-def fromCond4(Rs, rNorm, p0=(30., 1), maxG=10):
+def fromCond4(Rs, rNorm, p0=(30., 1e-1), maxG=10):
     """
     Must be a 3D array with index 2 being radian conditional density and
     index 0 and 1 being whatever
@@ -98,22 +98,17 @@ def fromCond4(Rs, rNorm, p0=(30., 1), maxG=10):
     rNorm=rNorm[:,:,1:]
     Lcs = []
     Gcs = []
+    #-----
+    # Iterate in variable
     for iv, rnm0 in enumerate(rNorm):
         print('Curve-fitting for variable {} of {}.'.format(iv+1, len(rNorm)))
         Lcs.append([])
         Gcs.append([])
+        #-----
+        # Iterate in time
         for it, rnm1 in enumerate(rnm0):
             rc, gamma = curve_fit(power_law, Rs, rnm1, p0=p0, check_finite=False, 
                     bounds=([1e-5,0], [np.inf,maxG]))[0]
-#            with warnings.catch_warnings():
-#                try:
-                    #rc, gamma = curve_fit(power_law, Rs, rnm1, p0=p0, check_finite=False, method='lm')[0]
-#                except:
-#                    from matplotlib import pyplot as plt
-#                    print(it)
-#                    plt.plot(Rs, rnm1)
-#                    plt.show()
-#                    exit()
             Lcs[iv].append(rc)
             Gcs[iv].append(gamma)
             #------
@@ -126,6 +121,8 @@ def fromCond4(Rs, rNorm, p0=(30., 1), maxG=10):
                 plt.show()
             #print(rc, gamma)
             #------
+        #-----
+    #-----
     return np.array(Lcs), np.array(Gcs)
 
 
@@ -148,7 +145,7 @@ def normalizeVars(Vars):
     return stVars
 
 
-def get_L(Vars, simulation=None, func=None, p0=(30, 1), maxG=10, 
+def get_L(Vars, simulation=None, func=None, p0=(30, 1e-1), maxG=10, 
         return_phi=False, pre_process=True):
     """
     Vars should be 4D, with x, y being the last two dimensions
