@@ -406,6 +406,30 @@ def nearest(array, values, return_idx=False):
     else:
         return array[idx]
 
+def detect_local_minima(arr):
+    """
+    Takes an array and detects the troughs using the local maximum filter.
+    Returns a boolean mask of the troughs (i.e. 1 when
+    the pixel's value is the neighborhood maximum, 0 otherwise)
+    """
+    import numpy as np
+    import scipy.ndimage.filters as filters
+    import scipy.ndimage.morphology as morphology
+    # http://stackoverflow.com/questions/3684484/peak-detection-in-a-2d-array/3689710#3689710
+    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.morphology.html#generate_binary_structure
+    neighborhood = morphology.generate_binary_structure(len(arr.shape),2)
+    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.filters.html#minimum_filter
+    local_min = (filters.minimum_filter(arr, footprint=neighborhood)==arr)
+    # In order to isolate the peaks we must remove the background from the mask.
+    background = (arr==0)
+    # we must erode the background in order to subtract it from local_min, or a line will 
+    # appear along the background border (artifact of the local minimum filter)
+    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.morphology.html#binary_erosion
+    eroded_background = morphology.binary_erosion(background, structure=neighborhood, border_value=1)
+    detected_minima = local_min - eroded_background
+    return np.where(detected_minima)  
+
+
 
 
 from matplotlib.colors import LinearSegmentedColormap as _lin_cmap

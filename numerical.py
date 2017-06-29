@@ -32,7 +32,13 @@ def diff_fft(array, n=1, axis=0, dx=1.):
     return np.fft.irfft(wave*freq, axis=axis)
 
 
-def correlate(in1, in2, mode="full", axis=0):
+
+
+
+
+
+
+def _correlate(in1, in2, mode="full", axis=0):
     """Convolve two N-dimensional arrays using FFT.
     Convolve `in1` and `in2` using the fast Fourier transform method, with
     the output size determined by the `mode` argument.
@@ -117,39 +123,4 @@ def correlate(in1, in2, mode="full", axis=0):
         raise ValueError("Acceptable mode flags are 'valid',"
                          " 'same', or 'full'.")
 
-def spectra(data, simulation=None, what='radial'):
-    """ """
-    import numpy.fft as FFT
-    import numpy as np
-    from . import utils
-    sim=simulation
-    S = FFT.fftshift
 
-    nv, nt, nx, ny = data.shape
-    data = data-data.mean(axis=(-2,-1), keepdims=True)
-    fx=S(np.fft.fftfreq(nx, d=sim.domain.dx))
-    fy=S(np.fft.fftfreq(ny, d=sim.domain.dy))
-    K1,K2=np.meshgrid(fy,fx)
-    Kabs=np.sqrt(K2**2+K1**2)
-
-    fftv = FFT.fft2(data, axes=(-2,-1))
-    pspec = Kabs*S((fftv*fftv.conj()).real, axes=(-2,-1))
-
-    if what=='radial':
-        radP = []
-        for iv in range(nv):
-            radK, radp = utils.radial_prof3D(pspec[iv], r=Kabs)
-            radP.append(radp)
-        return radK, 2.*np.pi*radK[None,None]*np.array(radP)
-
-    elif what=='2d':
-        return K1, K2, pspec
-
-    elif what=='integral':
-        R = np.tile(Kabs, (nv, nt, 1, 1))
-        R = np.ma.masked_where(R==0., R)
-        L = np.average(1./R, weights=pspec, axis=(-2,-1))
-        return L
-
-    else:
-        raise ValueError("'what' keyword wasn't correct. Should be 'radial', '2d' or 'integral'")

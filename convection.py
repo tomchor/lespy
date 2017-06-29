@@ -1,5 +1,5 @@
-
-def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5), condr=lambda x, y: x>=np.percentile(y,95), simulation=None, bins=None):
+def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5), 
+        condr=lambda x, y: x>=np.percentile(y,95), simulation=None, bins=None):
     """
     data: np.ndarray
         indices are:
@@ -42,13 +42,13 @@ def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5), condr=lambda x, 
 
 def radial_homogFunction(Vars, simulation=None, nc=None, func=None):
     """ Calculates the normalized conditional density as a function of radius """
-    from . import vector, utils
+    from . import stats, utils
     import numpy as np
     sim=simulation
     timelength=Vars.shape[1]
 
     if type(func)==type(None):
-        func=vector.condnorm2d_fft
+        func=stats.condnorm2d_fft
     if type(nc)==type(None):
         nc=sim.nx//2
 
@@ -170,7 +170,7 @@ def get_L(Vars, simulation=None, func=None, p0=(30, 1e-1), maxG=10,
         whether to first pre-process the data by X=(x-x.min())/x.std()
     """
     import numpy as np
-    from . import vector
+    from . import stats
     sim=simulation
 
     #-------
@@ -182,7 +182,7 @@ def get_L(Vars, simulation=None, func=None, p0=(30, 1e-1), maxG=10,
     #-------
     # We obtain the homogeneity function using the fastest method
     if func==None:
-        func=vector.condnorm2d_fft
+        func=stats.condnorm2d_fft
     Rs, Phi = radial_homogFunction(Vars, simulation=sim, func=func)
     #-------
 
@@ -220,14 +220,14 @@ def get_L(Vars, simulation=None, func=None, p0=(30, 1e-1), maxG=10,
 
 def _fromRadial(Hist, bins, window=None):
     """ Gets estimate if L from radial distr function """
-    from . import vector
+    from . import stats, utils
     import numpy as np
     maxima=[]
     if window:
-        Hist = vector.moving_average(Hist, axis=1, window=window)
+        Hist = stats.moving_average(Hist, axis=1, window=window)
         bins = bins[:(1-window)]
     for hist0 in Hist:
-        aux = vector.detect_local_minima(-hist0)
+        aux = utils.detect_local_minima(-hist0)
         maxima.append(aux[0][0])
     return bins[np.array(maxima)]
 
