@@ -4,7 +4,7 @@ from .core import *
 from .routines import *
 from . import core, utils, routines, plot, physics
 from . import vector, numerical, stats, spectral, nml
-from . import convection
+#from . import convection
 #from .fortran import numfor
 #import xarray
 #from .pyevtk.hl import gridToVTK

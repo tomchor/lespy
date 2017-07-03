@@ -1,44 +1,3 @@
-def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5), 
-        condr=lambda x, y: x>=np.percentile(y,95), simulation=None, bins=None):
-    """
-    data: np.ndarray
-        indices are:
-            0: time
-            1: x
-            2: y
-    """
-    import numpy as np
-    sim=simulation
-    nt, Lx1, Ly1 = data.shape
-    Lx, Ly = (np.array([Lx1, Ly1])/2).astype(int)
-    x = np.arange(-Lx,-Lx+Lx1,1)*sim.domain.dx
-    y = np.arange(-Ly,-Ly+Ly1,1)*sim.domain.dy
-    xx, yy = np.meshgrid(x, y)
-    r = np.sqrt(xx**2. + yy**2.)
-
-    if type(bins)==type(None):
-        bins = np.arange(0, 700, 10)
-
-    x = np.arange(-Lx,-Lx+Lx1,1)
-    y = np.arange(-Ly,-Ly+Ly1,1)
-
-    full_hist = np.zeros((nt, Lx1, Ly1, len(bins)-1))
-    for it in range(nt):
-        origins = np.where(cond0(data[it], data[it]))
-        for ix,iy in zip(*origins):
-            rolled = np.roll(data[it], -x[ix], axis=0)
-            rolled = np.roll(rolled,-y[iy],axis=1)
-            high_r = r[ condr(rolled, rolled) ]
-            full_hist[it,ix,iy,:] = np.histogram(high_r, bins=bins)[0]
-    hist = full_hist.mean(axis=(1,2))
-    summ = hist.sum(axis=(1), keepdims=True)
-    summ[ summ==0 ] = 1.
-    hist = hist/summ
-    norm = np.histogram(r, bins=bins)[0]
-    hist = hist/norm
-    centers = (bins[:-1]+bins[1:])/2
-    return hist, centers
-
 
 def radial_homogFunction(Vars, simulation=None, nc=None, func=None):
     """ Calculates the normalized conditional density as a function of radius """
@@ -52,12 +11,7 @@ def radial_homogFunction(Vars, simulation=None, nc=None, func=None):
     if type(nc)==type(None):
         nc=sim.nx//2
 
-#    try:
-#        x, y, condC = func(Vars, simulation=sim, nxc=nc, nyc=nc)
-#    except TypeError:
-#        x, y, condC = func(Vars, simulation=sim)
     x, y, condC = func(Vars, simulation=sim)
-#    print(condC.shape)
     nv, nt, nnx, nny = condC.shape
 
     print('Calculating phi(r) from phi(x,y) ... ')
@@ -70,18 +24,50 @@ def radial_homogFunction(Vars, simulation=None, nc=None, func=None):
     return np.array(Rs), np.array(rCond)
 
 
+
 def power_law(r, rc, gamma):
     """ Theoretical power law for the shape of the normalized conditional density """
+    import numpy as np
     import warnings
     warnings.filterwarnings('error')
     try:
-        out = (r/rc)**(-gamma)
-        out[ out<=1. ] = 1.
+        return np.piecewise(r, [r < rc, r >= rc], [lambda x: (x/rc)**-gamma, lambda x: 1])
     except Exception as e:
         print(rc, gamma)
         print(e)
         raise e
-    return out
+
+
+
+
+def from_Phi(Rs, rNorm):
+    """
+    Must be a 3D array with index 2 being radian conditional density and
+    index 0 and 1 being whatever
+    """
+    import numpy as np
+    from scipy.optimize import curve_fit
+    import warnings
+    warnings.filterwarnings('error')
+    Rs=Rs[1:]
+    lX=np.log(Rs)
+    rNorm=rNorm[:,:,1:]
+    Lcs = []
+    Gcs = []
+    #-----
+    # Iterate in variable
+    for iv, rnm0 in enumerate(rNorm):
+        print('Curve-fitting for variable {} of {}.'.format(iv+1, len(rNorm)))
+
+        lY=np.log(rnm0)
+        A = np.vstack([lX, np.ones(len(lX))]).T
+        gamma, c = np.linalg.lstsq(A, lY.T)[0]
+        L=np.exp(-c/gamma)
+
+        Lcs.append([L])
+        Gcs.append([gamma])
+    #-----
+    return np.array(Lcs), np.array(Gcs)
 
 
 
@@ -145,7 +131,7 @@ def normalizeVars(Vars):
     return stVars
 
 
-def get_L(Vars, simulation=None, func=None, p0=(30, 1e-1), maxG=10, 
+def get_L(Vars, simulation=None, p0=(30, 1e-1), maxG=10, 
         return_phi=False, pre_process=True):
     """
     Vars should be 4D, with x, y being the last two dimensions
@@ -158,8 +144,6 @@ def get_L(Vars, simulation=None, func=None, p0=(30, 1e-1), maxG=10,
         array from which to get L
     simulation: lespy.Simulation
         context
-    func: function
-        function to use in order to the Phi(x,y) function. Default is use fft method.
     p0: list, array, float
         for curve_fit
     maxG: float
@@ -181,9 +165,9 @@ def get_L(Vars, simulation=None, func=None, p0=(30, 1e-1), maxG=10,
 
     #-------
     # We obtain the homogeneity function using the fastest method
-    if func==None:
-        func=stats.condnorm2d_fft
-    Rs, Phi = radial_homogFunction(Vars, simulation=sim, func=func)
+#    if func==None:
+#        func=stats.condnorm2d_fft
+    Rs, Phi = radial_homogFunction(Vars, simulation=sim)
     #-------
 
     #-------
@@ -205,6 +189,7 @@ def get_L(Vars, simulation=None, func=None, p0=(30, 1e-1), maxG=10,
         return Rs, Phi
 
     else:
+        #Ls, Gammas = from_Phi(Rs, Phi)
         Ls, Gammas = fromCond4(Rs, Phi, p0=p0, maxG=maxG)
 
         #------
@@ -286,4 +271,18 @@ def _L_from_fft2(data, simulation=None, what='L'):
         R = np.tile(R0, (nv, nt, 1, 1))
         K = np.average(R, weights=pspec, axis=(-2,-1))
         return 1./K
+
+def _power_law_old(r, rc, gamma):
+    """ Theoretical power law for the shape of the normalized conditional density """
+    import warnings
+    warnings.filterwarnings('error')
+    try:
+        out = (r/rc)**(-gamma)
+        out[ out<=1. ] = 1.
+    except Exception as e:
+        print(rc, gamma)
+        print(e)
+        raise e
+    return out
+
 

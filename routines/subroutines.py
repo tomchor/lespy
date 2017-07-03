@@ -211,6 +211,8 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
             else:
                 bfile.read(8*u_nd*3)
             pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.ld, domain.ny, domain.nz_tot, sim.n_con), order='F')
+            if trim:
+                pcon=pcon[:sim.nx]
             return pcon*sim.pcon_scale
         #---------
 

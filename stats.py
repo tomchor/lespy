@@ -42,19 +42,19 @@ def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5),
     return hist, centers
 
 
-def radial_homogFunction(Vars, simulation=None, nc=None, func=None):
+#def radial_homogFunction(Vars, simulation=None, nc=None, func=None):
+def radial_homogFunction(Vars, simulation=None, nc=None):
     """ Calculates the normalized conditional density as a function of radius """
     from . import utils
     import numpy as np
     sim=simulation
     timelength=Vars.shape[1]
 
-    if type(func)==type(None):
-        func=condnorm2d_fft
+    
     if type(nc)==type(None):
         nc=sim.nx//2
 
-    x, y, condC = func(Vars, simulation=sim)
+    x, y, condC = condnorm2d_fft(Vars, simulation=sim)
     nv, nt, nnx, nny = condC.shape
 
     print('Calculating phi(r) from phi(x,y) ... ')
@@ -219,6 +219,50 @@ def correlate2d_fft(Vars, simulation=None, dx=None, dy=None):
   
     y, x = _np.mgrid[-dy*nyc:dy*nyc+1:dy, -dx*nxc:dx*nxc+1:dx]
     return x, y, vCorr
+
+
+def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5), 
+        condr=lambda x, y: x>=np.percentile(y,95), simulation=None, bins=None):
+    """
+    data: np.ndarray
+        indices are:
+            0: time
+            1: x
+            2: y
+    """
+    import numpy as np
+    sim=simulation
+    nt, Lx1, Ly1 = data.shape
+    Lx, Ly = (np.array([Lx1, Ly1])/2).astype(int)
+    x = np.arange(-Lx,-Lx+Lx1,1)*sim.domain.dx
+    y = np.arange(-Ly,-Ly+Ly1,1)*sim.domain.dy
+    xx, yy = np.meshgrid(x, y)
+    r = np.sqrt(xx**2. + yy**2.)
+
+    if type(bins)==type(None):
+        bins = np.arange(0, 700, 10)
+
+    x = np.arange(-Lx,-Lx+Lx1,1)
+    y = np.arange(-Ly,-Ly+Ly1,1)
+
+    full_hist = np.zeros((nt, Lx1, Ly1, len(bins)-1))
+    for it in range(nt):
+        origins = np.where(cond0(data[it], data[it]))
+        for ix,iy in zip(*origins):
+            rolled = np.roll(data[it], -x[ix], axis=0)
+            rolled = np.roll(rolled,-y[iy],axis=1)
+            high_r = r[ condr(rolled, rolled) ]
+            full_hist[it,ix,iy,:] = np.histogram(high_r, bins=bins)[0]
+    hist = full_hist.mean(axis=(1,2))
+    summ = hist.sum(axis=(1), keepdims=True)
+    summ[ summ==0 ] = 1.
+    hist = hist/summ
+    norm = np.histogram(r, bins=bins)[0]
+    hist = hist/norm
+    centers = (bins[:-1]+bins[1:])/2
+    return hist, centers
+
+
 
 
 def moving_average(x, window, **kwargs):
