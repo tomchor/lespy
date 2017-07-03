@@ -252,7 +252,7 @@ class Output(object):
             return pcons
 
 
-    def compose_time(self, times=None, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True,
+    def compose_uvwT(self, times=None, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True,
             apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
         """
         Puts together everything in time, but can't compose endless patches. Output
@@ -465,9 +465,9 @@ class Output(object):
         import multiprocessing
         from multiprocessing import Pool
         bounds = [t_ini, t_end]
-        def par_compose_time(x):
-            return out.compose_time(simulation=sim, t_ini=x[0], t_end=x[1], **kwargs)
+        def par_compose_uvwT(x):
+            return out.compose_uvwT(simulation=sim, t_ini=x[0], t_end=x[1], **kwargs)
         pool = Pool(processes=nprocs)
-        outs = pool.map(par_compose_time, bounds)
+        outs = pool.map(par_compose_uvwT, bounds)
         return zip(*outs)
 
