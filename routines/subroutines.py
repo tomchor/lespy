@@ -104,7 +104,7 @@ def _readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=No
     #---------
     
 
-def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, read_just_pcon=False, trim=True):
+def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, only_pcon=False, trim=True):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -122,7 +122,7 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
         It just gives a warning if it fails
     n_con: int
         number of pcon sizes to read. Overwrites n_con from simulation
-    read_just_pcon: bool
+    only_pcon: bool
         if file is vel_sc, skip u,v,w,T and read just pcon. Makes reading pcon a lot faster.
     """
     from os import path
@@ -151,7 +151,7 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     u,v,w,T,pcon = [None]*5
     u_nd = domain.ld*domain.ny*domain.nz_tot
     u_nd2 = domain.ld*domain.ny
-    if read_pcon or read_just_pcon:
+    if read_pcon or only_pcon:
         if n_con==None:
             n_con = sim.n_con
         p_nd = u_nd*n_con
@@ -205,7 +205,7 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     elif path.basename(fname).startswith('vel_sc'):
         #---------
         # If you want just the concentration, this will skip everything else and will read faster
-        if read_just_pcon:
+        if only_pcon:
             if sim.s_flag:
                 bfile.read(8*u_nd*4)
             else:
