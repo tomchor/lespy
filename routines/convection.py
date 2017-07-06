@@ -1,7 +1,7 @@
 
 def radial_homogFunction(Vars, simulation=None, nc=None, func=None):
     """ Calculates the normalized conditional density as a function of radius """
-    from . import stats, utils
+    from .. import stats, utils
     import numpy as np
     sim=simulation
     timelength=Vars.shape[1]
@@ -154,7 +154,7 @@ def get_L(Vars, simulation=None, p0=(30, 1e-1), maxG=10,
         whether to first pre-process the data by X=(x-x.min())/x.std()
     """
     import numpy as np
-    from . import stats
+    from .. import stats
     sim=simulation
 
     #-------
@@ -205,7 +205,7 @@ def get_L(Vars, simulation=None, p0=(30, 1e-1), maxG=10,
 
 def _fromRadial(Hist, bins, window=None):
     """ Gets estimate if L from radial distr function """
-    from . import stats, utils
+    from .. import stats, utils
     import numpy as np
     maxima=[]
     if window:
@@ -229,7 +229,7 @@ def _L_from_fft2(data, simulation=None, what='L'):
     """ """
     import numpy.fft as FFT
     import numpy as np
-    from . import utils
+    from .. import utils
     sim=simulation
     S = FFT.fftshift
 
