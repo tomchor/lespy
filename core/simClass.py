@@ -90,7 +90,7 @@ class Simulation(object):
     def __str__(self):
         buff='Simulation Parameters\n'+ '-'*21
         buff += '\nEndless    : {}\n'.format(self.flag_endless)
-        buff += 'dt:        : {} s'.format(self.dt)
+        buff += 'dt:        : {} s\n'.format(self.dt)
         buff+= self.domain.__str__()
         return buff
     def __repr__(self):

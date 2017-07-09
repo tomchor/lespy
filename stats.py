@@ -221,6 +221,26 @@ def correlate2d_fft(Vars, simulation=None, dx=None, dy=None):
     return x, y, vCorr
 
 
+
+def corr_pearson2d(x, y):
+    """
+    Computes Pearson correlation of 2 ndarrays using the 2 last dimensions
+    """
+    import numpy as np
+
+    x_mean = np.mean(x, axis=(-2,-1), keepdims=True)
+    y_mean = np.mean(y, axis=(-2,-1), keepdims=True)
+
+    x_std = np.std(x, axis=(-2,-1))
+    y_std = np.std(y, axis=(-2,-1))
+
+    cov = ((x - x_mean)*(y - y_mean)).mean(axis=(-2,-1))
+
+    return cov/(x_std*y_std)
+
+
+
+
 def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5), 
         condr=lambda x, y: x>=np.percentile(y,95), simulation=None, bins=None):
     """
