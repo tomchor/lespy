@@ -231,10 +231,13 @@ def corr_pearson2d(x, y):
     x_mean = np.mean(x, axis=(-2,-1), keepdims=True)
     y_mean = np.mean(y, axis=(-2,-1), keepdims=True)
 
+    cov = ((x - x_mean)*(y - y_mean)).mean(axis=(-2,-1))
+
+    x_mean, y_mean = None, None
+    del x_mean, y_mean
+
     x_std = np.std(x, axis=(-2,-1))
     y_std = np.std(y, axis=(-2,-1))
-
-    cov = ((x - x_mean)*(y - y_mean)).mean(axis=(-2,-1))
 
     return cov/(x_std*y_std)
 

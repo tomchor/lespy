@@ -104,7 +104,8 @@ def _readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=No
     #---------
     
 
-def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, only_pcon=False, trim=True):
+def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, only_pcon=False, 
+        trim=True, as_dataarray=False):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -238,9 +239,11 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
             try:
                 pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.ld, domain.ny, domain.nz_tot, sim.n_con), order='F')
             except ValueError as e:
-                if n_con!=None and n_con:
-                    print("Trying to read pcon failed. Set n_con=0 to specify you don't want to read it")
+                if n_con!=None and sim.pcon_flag:
+                    print("Trying to read pcon failed. Set n_con=0 or read_pcon=0 to specify you don't want to read it")
                     raise e
+                elif str(e).startswith('cannot reshape array of size 0'):
+                    pass
                 else:
                     print("Couldn't read pcon value at the end. Life goes on.")
         #---------
@@ -265,6 +268,10 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     if trim:
         for i in range(len(outlist)):
             outlist[i] = outlist[i][:sim.nx]
+
+    if as_dataarray:
+        for i in range(len(outlist)):
+            outlist[i] = sim.DataArray(outlist[i])
 
     #---------
     # We simplify if there's only one output
