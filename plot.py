@@ -381,7 +381,8 @@ def plane(plane, outname=None, which='xy', simulation=None,
 
 def plane2(plane, outname=None, which='xy', simulation=None, interpolation=None,
         axes=[], levels=None, logscale=False, clim=[], title='',
-        set_cbar=True, cmap='viridis', xlim=[], ylim=[], aspect='equal', nbins=6, clabel=''):
+        set_cbar=True, cmap='viridis', xlim=[], ylim=[], aspect='equal', 
+        nbins=6, clabel='', axis=None, label_xy=True):
     """
     Prints 2D animations from binary data for oil concentrations
     """
@@ -390,6 +391,7 @@ def plane2(plane, outname=None, which='xy', simulation=None, interpolation=None,
     from .utils import get_ticks
 
     sim = simulation
+    if axis: plt.sca(axis)
 
     #------------
     # Sets levels and ticks to use on the contour
@@ -410,6 +412,9 @@ def plane2(plane, outname=None, which='xy', simulation=None, interpolation=None,
             elif which == 'xz':
                 ax1 = sim.domain.x
                 ax2 = sim.domain.z
+            else:
+                ax1 = np.arange(0, plane.shape[0])
+                ax2 = np.arange(0, plane.shape[1])
         else:
             ax1 = np.arange(0, plane.shape[0])
             ax2 = np.arange(0, plane.shape[1])
@@ -421,12 +426,13 @@ def plane2(plane, outname=None, which='xy', simulation=None, interpolation=None,
 
     #----------
     # Sets labels latex style (no label is set if which is not given
-    if which=='xz':
-        plt.xlabel('$\mathbf{x(m)}$')
-        plt.ylabel('$\mathbf{z(m)}$')
-    elif which=='xy':
-        plt.xlabel('$\mathbf{x(m)}$')
-        plt.ylabel('$\mathbf{y(m)}$')
+    if label_xy:
+        if which=='xz':
+            plt.xlabel('$\mathbf{x(m)}$')
+            plt.ylabel('$\mathbf{z(m)}$')
+        elif which=='xy':
+            plt.xlabel('$\mathbf{x(m)}$')
+            plt.ylabel('$\mathbf{y(m)}$')
     #----------
 
     #----------

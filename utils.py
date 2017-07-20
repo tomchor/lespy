@@ -162,25 +162,30 @@ def np2vtr(arrays, outname):
     dataarray = xr.DataArray(np_array, dims=['time', 'x', 'y'], coords={'time':timestamps', 'x':x_array, 'y':y_array})
     """
     from .pyevtk.hl import gridToVTK
+    import numpy as np
+
     coords = list(arrays.values())[0].coords
     x = coords['x'].values
     y = coords['y'].values
     z = coords['z'].values
+    points={}
+    for key, val in arrays.items():
+        points.update({ key:np.array(val) })
 
     if 'time' not in coords.dims:
-        try:
-            gridToVTK(outname, x,y,z, pointData = arrays)
-        except AssertionError:
-            arrays = { key:val.values for key,val in arrays.items() }
-            gridToVTK(outname, x,y,z, pointData = arrays)
+        gridToVTK(outname, x,y,z, pointData = points)
+#        try:
+#            gridToVTK(outname, x,y,z, pointData = points)
+#        except AssertionError:
+#            arrays = { key:val.values for key,val in arrays.items() }
+#            gridToVTK(outname, x,y,z, pointData = arrays)
     else:
         timestamps = coords['time']
         for tstep in timestamps:
             tstep = int(tstep)
             print('Writing t=',tstep,'to vtr')
-            points={}
-            for key, val in arrays.items():
-                points.update({ key:val.sel(time=tstep).values })
+            #for key, val in arrays.items():
+            #    points.update({ key:val.sel(time=tstep).values })
             gridToVTK(outname.format(tstep), x,y,z, pointData = points)
 
     return

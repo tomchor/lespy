@@ -1,5 +1,5 @@
 # *************************************************************************
-# * Copyright 2010 Paulo Herrera                                          *
+# * Copyright 2010 - 2016 Paulo Herrera                                   *
 # *                                                                       *
 # * This file is part of EVTK.                                            *
 # *                                                                       *
@@ -17,3 +17,7 @@
 # * along with EVTK.  If not, see <http://www.gnu.org/licenses/>.         *
 # *************************************************************************
 
+from . import evtk
+from . import hl
+from . import vtk
+from . import xml
