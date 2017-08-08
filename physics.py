@@ -11,7 +11,7 @@ cp_w =  4185.5
 units['cp_w'] = 'J/(kg*K)'
 
 # Expansion coefficient of water
-alpha_w = 207e-6
+alpha_w = 2.0e-4
 units['alpha_w'] = '1/K'
 
 # Dynamic viscosity of water
@@ -130,7 +130,7 @@ def w_star(simulation=None, zi=None, wt_s=None, t_init=None):
     if type(wt_s)==type(None):
         wt_s=sim.wt_s
     if type(t_init)==type(None):
-        t_init=sim.t_init
+        t_init=1/alpha_w
     w_star = (g*wt_s*zi/t_init)**(1./3.)
     return w_star
 

@@ -94,7 +94,7 @@ class Output(object):
                 opfiles.loc[i, 'con_tt'] = flist
         #---------
 
-        self.binaries = opfiles
+        self.binaries = opfiles.sort_index()
         print('... done reading and organizing.')
         return
 

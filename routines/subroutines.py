@@ -282,88 +282,142 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     #---------
     
 
-def _readBinary(fname, simulation=None, domain=None, engine='fortran'):
-    """Reads a binary file according to the simulation object passed
+def interp_w(w, axis=-1):
+    """ Interpolate w to uv_nodes keeping the same shape """
+    import numpy as np
+    w=np.asarray(w)
+    w_int=(w.take(np.arange(0, w.shape[axis]-1), axis=axis) + w.take(np.arange(1, w.shape[axis]), axis=axis))/2
+    pads=[ (0,0) for ax in range(w.ndim) ]
+    pads[axis]=(0,1)
+    w_int=np.pad(w_int, pads, 'constant', constant_values=0)
+    return w_int
+
+
+def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=None, use_deardorff=False, **kwargs):
     """
-    from os import path
-    from .. import Simulation
+    Monitor important statistics and profiles of the simulation to see if it has converged or not
+    """
+    import numpy as np
+    from matplotlib import pyplot as plt
 
-    if isinstance(simulation, str):
-        from ..simClass import simulation as Sim
-        simulation = Sim(simulation)
+    sim=simulation
 
-    #---------
-    # Dealing with pre-requesites. Using only domain is more general
-    if (simulation==None) and (domain==None):
-        domain = Simulation(fname).domain
-    elif (simulation==None) and (domain!=None):
-        pass
-    elif (simulation!=None) and (domain==None):
-        sim = simulation
-        domain = sim.domain
-    else:
-        sim = simulation
-    #---------
-
-    #---------
-    # If reading with python, it's more flexible but around 20 times slower
-    if engine=='python':
-        import numpy as np
-        from struct import unpack
-        #--------------
-        # For fortran unformatted output you have to skip first 4 bytes
-        bfile = open(fname, 'rb')
-        bfile.read(4)
-        #--------------
+    w_star=sim.w_star
+    uw_scale=sim.u_scale/w_star
+    t_star=sim.inv_depth/sim.u_scale
+    t_conv=sim.inv_depth/w_star
+    count=sim.p_count
+    Z=sim.domain.z_w[:-1]
     
-        if path.basename(fname).startswith('con_tt'):
-            p_nd = sim.domain.ld*sim.ny*sim.nz_tot*sim.n_con
-            pcon = unpack('d'*p_nd, bfile.read(8*p_nd))
-            pcon = np.array(pcon).reshape((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
-            return pcon
+    #-----
+    # Read wT
+    sgs_t3=np.genfromtxt(path+'/aver_sgs_t3.out', skip_header=Nstart//count)
+    ndtimes=sgs_t3[:,0]
+    sgs_t3=sgs_t3[:,1:]*sim.t_scale*sim.u_scale/sim.wt_s
     
-        elif path.basename(fname).startswith('vel_sc'):
-            u_nd = domain.ld*domain.ny*domain.nz_tot
-            u = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-            v = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-            w = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-
-            if simulation.s_flag and simulation.pcon_flag:
-                p_nd = sim.domain.ld*sim.ny*sim.nz_tot*sim.n_con
-                T = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((sim.domain.ld, sim.ny, sim.nz_tot), order='F')
-                pcon = np.array(unpack('d'*p_nd, bfile.read(8*p_nd))).reshape((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
-                return u,v,w,T,pcon
-
-            elif simulation.s_flag and (not simulation.pcon_flag):
-                T = np.array(unpack('d'*u_nd, bfile.read(8*u_nd))).reshape((sim.domain.ld, sim.ny, sim.nz_tot), order='F')
-                return u,v,w,T
+    res_t3=np.genfromtxt(path+'/aver_wt.out', skip_header=Nstart//count)*sim.t_scale*sim.u_scale/sim.wt_s
+    res_t3=res_t3[:,1:]
     
-            elif (not simulation.s_flag) and (not simulation.pcon_flag):
-                return u,v,w
-
-            elif (not simulation.s_flag) and simulation.pcon_flag:
-                p_nd = sim.domain.ld*sim.ny*sim.nz_tot*sim.n_con
-                pcon = np.array(unpack('d'*p_nd, bfile.read(8*p_nd))).reshape((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
-                return u,v,w,pcon
-        return
-    #---------
+    wT=res_t3+sgs_t3
+    wT_mean=wT[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
+    #zi_list = lp.physics.get_zi(wT, simulation=sim)
+    #-----
     
-    #---------
-    # Reading with fortran is less flexible but 20 times faster
-    elif engine=='fortran':
-        from . import read_instant3 as read
+    #-----
+    # Read u2
+    res_u2=np.genfromtxt(path+'/aver_u2.out', skip_header=Nstart//count)*uw_scale**2
+    res_u2=res_u2[:,1:]
+    res_u2_mean=res_u2[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
+    #-----
+    
+    #-----
+    # Read w2
+    res_w2=np.genfromtxt(path+'/aver_w2.out', skip_header=Nstart//count)*uw_scale**2
+    res_w2=res_w2[:,1:]
+    res_w2_mean=res_w2[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
+    #-----
+    
+    #-----
+    # Read w3
+    res_w3=-np.genfromtxt(path+'/aver_w3.out', skip_header=Nstart//count)*uw_scale**3
+    res_w3=res_w3[:,1:]
+    res_w3_mean=res_w3[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
+    #-----
+    
+    #-----
+    # Read T2
+    res_T2=np.genfromtxt(path+'/aver_var_t.out', skip_header=Nstart//count)*sim.t_scale*w_star/(sim.wt_s)
+    res_T2=res_T2[:,1:]
+    res_T2_mean=res_T2[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
+    #-----
+    
+    if use_deardorff: 
+        ndtimes=ndtimes*(t_star/t_conv)
+    #itimes=ndtimes*t_star/sim.dt
+    
+    def adjust_fig(figure):
+        for ax in figure.axes:
+            ax.grid()
+            ax.set_xticks(ax.get_xticks()[::2])
+        figure.tight_layout()
+    
+    #-----
+    # u^2
+    fig, axes = plt.subplots(2,5, gridspec_kw=dict(height_ratios=[3,1]), figsize=(19,9))
+    axes[0,0].set_title('$u^2$')
+    axes[1,0].set_title('MAX$(u^2)$')
+    #axes[0,0].plot(res_u2[-30:].mean(0), Z)
+    for i, arr_i in enumerate(res_u2_mean):
+        axes[0,0].plot(arr_i, Z, label='t{}'.format(i))
+    axes[0,0].legend()
+    axes[1,0].plot(ndtimes, res_u2.max(1))
+    #-----
+    
+    #-----
+    # T^2
+    axes[0,1].set_title('$T^2$')
+    axes[1,1].set_title('MAX$(T^2)$')
+    #axes[0,1].plot(res_T2[-30:].mean(0), Z)
+    for i, arr_i in enumerate(res_T2_mean):
+        axes[0,1].plot(arr_i, Z, label='t{}'.format(i))
+    axes[0,1].legend()
+    axes[1,1].plot(ndtimes, res_T2.max(1))
+    #-----
+    
+    #-----
+    # w^2
+    axes[0,2].set_title('$w^2$')
+    axes[1,2].set_title('MAX$(w^2)$')
+    #axes[0,2].plot(res_w2[-30:].mean(0), Z)
+    for i, arr_i in enumerate(res_w2_mean):
+        axes[0,2].plot(arr_i, Z, label='t{}'.format(i))
+    axes[0,2].legend()
+    axes[1,2].plot(ndtimes, res_w2.max(1))
+    #-----
+    
+    #-----
+    # w^3
+    axes[0,3].set_title('$w^3$')
+    axes[1,3].set_title('MIN$(w^3)$')
+    #axes[0,3].plot(res_w3[-30:].mean(0), Z)
+    for i, arr_i in enumerate(res_w3_mean):
+        axes[0,3].plot(arr_i, Z, label='t{}'.format(i))
+    axes[0,3].legend()
+    axes[1,3].plot(ndtimes, res_w3.min(1))
+    #-----
+    
+    #-----
+    # w*T
+    axes[0,4].set_title('$wT$')
+    axes[1,4].set_title('MIN$(wT)$')
+    #axes[0,4].plot(wT[-30:].mean(0), Z)
+    for i, arr_i in enumerate(wT_mean):
+        axes[0,4].plot(arr_i, Z, label='t{}'.format(i))
+    axes[0,4].legend()
+    axes[1,4].plot(ndtimes, wT.min(1))
+    adjust_fig(fig)
+    fig.savefig(outname)
+    #-----
+    return axes
 
-        if path.basename(fname).startswith('con_tt'):
-            u,v,w,T,pcon = read.read_binary(fname, sim.nx, sim.ny, sim.nz_tot, sim.n_con, sim.s_flag, sim.pcon_flag, sim.flag_endless, 'con_tt')
-            return pcon
-
-        elif path.basename(fname).startswith('vel_sc'):
-            u,v,w,T,pcon = read.read_binary(fname, sim.nx, sim.ny, sim.nz_tot, sim.n_con, sim.s_flag, sim.pcon_flag, sim.flag_endless, 'vel_sc')
-            if simulation.s_flag and simulation.pcon_flag:
-                return u,v,w,T,pcon
-            if simulation.s_flag and (not simulation.pcon_flag):
-                return u,v,w,T
-
-        return
-    #---------
 

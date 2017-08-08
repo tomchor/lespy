@@ -10,29 +10,31 @@ Implicit None
 !Variable Declarations -----------------------------------------------------------------------------
     
 integer                        :: ix,iy,iz
-integer,parameter                :: nx_s = 100, ny_s =100, nz_s = 60+1        !# nodes on small grid (w/ MPI)
-integer,parameter                :: nx_b = 200, ny_b =200, nz_b = 120+1        !# nodes on big grid (w/ MPI)
+integer,parameter                :: nx_s = 160, ny_s =160, nz_s = 75+1        !# nodes on small grid (w/ MPI)
+integer,parameter                :: nx_b = 320, ny_b =320, nz_b = 150+1        !# nodes on big grid (w/ MPI)
 
-integer                        :: S_s, S_b,i
+integer                        :: S_s, S_b, S_s2, S_b2, i
 
-character(len=36)                :: path = '/data/1/tomaschor/LES/homo4/restart/'
-character(len=25)                 :: input_file = 'vel_tt01000000.out'        !Coarse grid after 10h
-character(len=26)                 :: input_file_temp = 'temp_tt01000000.out'        !Coarse grid after 10h
-character(len=23)                 :: output_file ='vel_tt01000000.out'        !Restart file for fine grid
-character(len=23)                 :: output_file_temp ='temp_tt01000000.out'        !Restart file for fine grid
+character(len=36)                :: path = '/data/1/tomaschor/LES/convB/restart/'
+character(len=30)                 :: input_file = 'vel_tt00400000.out.coarse'        !Coarse grid
+character(len=30)                 :: input_file_temp = 'temp_tt00400000.out.coarse'        !Coarse grid
+character(len=23)                 :: output_file ='vel_tt00400000.out'        !Restart file for fine grid
+character(len=23)                 :: output_file_temp ='temp_tt00400000.out'        !Restart file for fine grid
 
 real(kind=8)                    :: dummy
 
 !Variables on coarse grid
 real(kind=8),dimension(nx_s+2,ny_s,1:nz_s)    :: u_s, v_s, w_s, theta_s, RHSx_s, RHSy_s, RHSz_s, RHSt_s
-real(kind=8),dimension(nx_s+2,ny_s,0:nz_s)    :: sgs_t3_s                !
-real(kind=8),dimension(nx_s,ny_s)        :: psi_m_s                !What to do with this one?
+real(kind=8),dimension(nx_s+2,ny_s,1)    :: sgs_t3_s                !
+real(kind=8),dimension(nx_s,ny_s)        :: psi_m_s
+real(kind=8),dimension(nx_s+2,ny_s)        :: psi_m_s_aux
 real(kind=8),dimension(nx_s+2,ny_s,nz_s)    :: cs_s, FLM_s,FMM_s,FQN_s,FNN_s
 
 !Variables on fine grid
 real(kind=8),dimension(nx_b+2,ny_b,1:nz_b)    :: u_b,v_b,w_b,theta_b,RHSx_b,RHSy_b,RHSz_b,RHSt_b
-real(kind=8),dimension(nx_b+2,ny_b,0:nz_b)    :: sgs_t3_b    
+real(kind=8),dimension(nx_b+2,ny_b,1)    :: sgs_t3_b    
 real(kind=8),dimension(nx_b,ny_b)        :: psi_m_b
+real(kind=8),dimension(nx_b+2,ny_b)        :: psi_m_b_aux
 real(kind=8),dimension(nx_b+2,ny_b,nz_b)    :: cs_b, FLM_b,FMM_b,FQN_b,FNN_b
 
 !Vertical profiles (for debugging purposes)
@@ -48,7 +50,7 @@ real(kind=8),dimension(3,nz_b)            :: z_b
 !Initialize
 sgs_t3_s(:,:,:) = 0.D0
 sgs_t3_b(:,:,:) = 0.D0
-psi_m_b(:,:) = 0.D0
+psi_m_b = 0.D0
 
 !NOTE: Will probably have to do 2D interpolation for psi_m if sfc heat flux is nonzero. Here not an issue, since
 !we're imposing heat flux @ canopy top and sfc. Obukhov length is +infty. 
@@ -65,8 +67,7 @@ open(unit=10,file=path//input_file,form='unformatted',action='read')
 !          RHSt_s(:,:,1:nz_s), sgs_t3_s(:,:,1), psi_m_s,Cs_s, FLM_s, FMM_s,&
 read(10) u_s(:, :, 1:nz_s), v_s(:, :, 1:nz_s), w_s(:, :, 1:nz_s), &
           RHSx_s(:, :, 1:nz_s), RHSy_s(:, :, 1:nz_s), RHSz_s(:, :, 1:nz_s),&
-          Cs_s, FLM_s, FMM_s,&
-          FQN_s, FNN_s
+          Cs_s, FLM_s, FMM_s, FQN_s, FNN_s
 close(10)
 
 write(*,*)'Input file'
@@ -76,8 +77,6 @@ close(12)
 
 
    
-sgs_t3_b = 0.D0
-psi_m_b = 0.D0
 
 write(*,*)'u'
 call interpolate(u_s,nx_s,ny_s,nz_s,u_b,nx_b,ny_b,nz_b)
@@ -95,11 +94,17 @@ write(*,*)'RHSz'
 call interpolate(RHSz_s,nx_s,ny_s,nz_s,RHSz_b,nx_b,ny_b,nz_b)
 write(*,*)'RHSt'
 call interpolate(RHSt_s,nx_s,ny_s,nz_s,RHSt_b,nx_b,ny_b,nz_b)
-write(*,*)'cs'
-call interpolate(cs_s,nx_s,ny_s,nz_s,cs_b,nx_b,ny_b,nz_b)
-!psi_m_b?        -> May need to add 2d interpolation for this later on. 
-!    write(*,*)'sgs_t3'
-!    call interpolate(sgs_t3_s,nx_s,ny_s,nz_s+1,sgs_t3_b,nx_b,ny_b,nz_b+1)
+write(*,*)'Cs'
+call interpolate(Cs_s,nx_s,ny_s,nz_s,Cs_b,nx_b,ny_b,nz_b)
+write(*,*)'psi_m'
+!call interpolate(psi_m_s,nx_s,ny_s,1,psi_m_b,nx_b,ny_b,1)
+! TOMAS CHOR: had to change this for the interpolation to work as it is
+psi_m_s_aux(1:nx_s,:)=psi_m_s(1:nx_s,:)
+psi_m_b_aux=-9999
+call interpolate(psi_m_s_aux,nx_s,ny_s,1,psi_m_b_aux,nx_b,ny_b,1)
+psi_m_b(1:nx_b,:)=psi_m_b_aux(1:nx_b,:)
+write(*,*)'sgs_t3'
+call interpolate(sgs_t3_s,nx_s,ny_s,1,sgs_t3_b,nx_b,ny_b,1)
 write(*,*)'FLM'
 call interpolate(FLM_s,nx_s,ny_s,nz_s,FLM_b,nx_b,ny_b,nz_b)
 write(*,*)'FMM'
@@ -109,24 +114,6 @@ call interpolate(FQN_s,nx_s,ny_s,nz_s,FQN_b,nx_b,ny_b,nz_b)
 write(*,*)'FNN'
 call interpolate(FNN_s,nx_s,ny_s,nz_s,FNN_b,nx_b,ny_b,nz_b)
 
-S_s = nx_s*ny_s*nz_s
-S_b = nx_b*ny_b*nz_b
-
-print*, SUM(u_s)/S_s,SUM(u_b)/S_b
-print*, SUM(v_s)/S_s,SUM(v_b)/S_b
-print*, SUM(w_s)/S_s,SUM(w_b)/S_b
-print*, SUM(theta_s)/S_s,SUM(theta_b)/S_b
-print*, SUM(RHSx_s)/S_s,SUM(RHSx_b)/S_b
-print*, SUM(RHSy_s)/S_s,SUM(RHSy_b)/S_b
-print*, SUM(RHSz_s)/S_s,SUM(RHSz_b)/S_b
-print*, SUM(RHSt_s)/S_s,SUM(RHSt_b)/S_b
-print*, SUM(cs_s)/S_s,SUM(cs_b)/S_b
-print*, SUM(sgs_t3_s)/S_s,SUM(sgs_t3_b)/S_b
-print*, SUM(FLM_s)/S_s,SUM(FLM_b)/S_b
-print*, SUM(FMM_s)/S_s,SUM(FMM_b)/S_b
-print*, SUM(FQN_s)/S_s,SUM(FQN_b)/S_b
-print*, SUM(FNN_s)/S_s,SUM(FNN_b)/S_b
-
 u_b(nx_b+1:nx_b+2,:,:) = 0.D0
 v_b(nx_b+1:nx_b+2,:,:) = 0.D0
 w_b(nx_b+1:nx_b+2,:,:) = 0.D0
@@ -135,28 +122,49 @@ RHSx_b(nx_b+1:nx_b+2,:,:) = 0.D0
 RHSy_b(nx_b+1:nx_b+2,:,:) = 0.D0
 RHSz_b(nx_b+1:nx_b+2,:,:) = 0.D0
 RHSt_b(nx_b+1:nx_b+2,:,:) = 0.D0
-cs_b(nx_b+1:nx_b+2,:,:) = 1E-32
+Cs_b(nx_b+1:nx_b+2,:,:) = 1E-32
 sgs_t3_b(nx_b+1:nx_b+2,:,:) = 0.D0
 FLM_b(nx_b+1:nx_b+2,:,:) = 1E-32
 FMM_b(nx_b+1:nx_b+2,:,:) = 1E-32
 FQN_b(nx_b+1:nx_b+2,:,:) = 1E-32
 FNN_b(nx_b+1:nx_b+2,:,:) = 1E-32
 
+S_s = nx_s*ny_s*nz_s
+S_b = nx_b*ny_b*nz_b
+S_s2 = nx_s*ny_s
+S_b2 = nx_b*ny_b
+
+print*, 'u', SUM(u_s)/S_s,SUM(u_b)/S_b
+print*, 'v', SUM(v_s)/S_s,SUM(v_b)/S_b
+print*, 'w', SUM(w_s)/S_s,SUM(w_b)/S_b
+print*, 'RHSx', SUM(RHSx_s)/S_s,SUM(RHSx_b)/S_b
+print*, 'RHSy', SUM(RHSy_s)/S_s,SUM(RHSy_b)/S_b
+print*, 'RHSz', SUM(RHSz_s)/S_s,SUM(RHSz_b)/S_b
+print*, 'Cs', SUM(Cs_s)/S_s,SUM(Cs_b)/S_b
+print*, 'FLM', SUM(FLM_s)/S_s,SUM(FLM_b)/S_b
+print*, 'FMM', SUM(FMM_s)/S_s,SUM(FMM_b)/S_b
+print*, 'FQN', SUM(FQN_s)/S_s,SUM(FQN_b)/S_b
+print*, 'FNN', SUM(FNN_s)/S_s,SUM(FNN_b)/S_b
+print*, 'theta', SUM(theta_s)/S_s,SUM(theta_b)/S_b
+print*, 'RHSt', SUM(RHSt_s)/S_s,SUM(RHSt_b)/S_b
+print*, 'sgs_t3', SUM(sgs_t3_s)/S_s2,SUM(sgs_t3_b)/S_b2
+print*, 'psi_m', SUM(psi_m_s)/S_s2,SUM(psi_m_b)/S_b2
+
 write(*,*)'Writing output file'
 open(unit=11,file=output_file,form='unformatted',action='write')
 write(11) u_b(:, :, 1:nz_b), v_b(:, :, 1:nz_b), w_b(:, :, 1:nz_b), &
           rhsx_b(:, :, 1:nz_b), rhsy_b(:, :, 1:nz_b), rhsz_b(:, :, 1:nz_b),&
-          cs_b, flm_b, fmm_b,&
+          Cs_b, flm_b, fmm_b,&
           fqn_b, fnn_b
 close(11)
 
 
 open(unit=13,file=output_file_temp,form='unformatted',action='write')
-write(13) theta_b(:,:,1:nz_b), rhst_b(:,:,1:nz_b), sgs_t3_b(:,:,1), psi_m_b,cs_b
+write(13) theta_b(:,:,1:nz_b), RHSt_b(:,:,1:nz_b), sgs_t3_b(:,:,1), psi_m_b
 close(13)
 
 
-STOP    !Stop after interpolation... no debugging for now
+!STOP    !Stop after interpolation... no debugging for now
 
 !--------------------------------------------------------------
 !DEBUG BLOCK --------------------------------------------------
@@ -218,7 +226,7 @@ z_b(3,2:nz_b)=z_b(2,1:nz_b-1)
 
 write(*,*)'Writing mean profiles'
 !Write mean vertical profiles to file
-open(unit=20,file=path//'les.020/output/coarse_profiles.txt',action='write',form='formatted')
+open(unit=20,file='coarse_profiles.txt',action='write',form='formatted')
 do i=1,nz_s
     write(20,'(16(F,X))')z_s(1,i),z_s(2,i),z_s(3,i),u_s_avg(i),v_s_avg(i),w_s_avg(i),theta_s_avg(i),&
         RHSx_s_avg(i),RHSy_s_avg(i),RHSz_s_avg(i),RHSt_s_avg(i),cs_s_avg(i),&
@@ -226,13 +234,16 @@ do i=1,nz_s
 end do
 close(20)
 
-open(unit=21,file=path//'les.020/output/fine_profiles.txt',action='write',form='formatted')
+open(unit=21,file='fine_profiles.txt',action='write',form='formatted')
 do i=1,nz_b
     write(21,'(16(F,X))')z_b(1,i),z_b(2,i),z_b(3,i),u_b_avg(i),v_b_avg(i),w_b_avg(i),theta_b_avg(i),&
         RHSx_b_avg(i),RHSy_b_avg(i),RHSz_b_avg(i),RHSt_b_avg(i),cs_b_avg(i),&
         FLM_b_avg(i),FMM_b_avg(i),FQN_b_avg(i),FNN_b_avg(i)
 end do
 close(21)
+
+
+
 
 
 
@@ -281,50 +292,50 @@ rx = real(nx_s)/real(nx_b)
 ry = real(ny_s)/real(ny_b)
 rz = real(nz_s-1)/real(nz_b-1)
 
-  do jz=1,nz_b-1  ! we already know the last point!
+do jz=1,nz_b-1  ! we already know the last point!
     k = floor((jz-1)*rz) + 1
     dz = (jz-1)*rz-(k-1)
     do jy=1,ny_b
-      j = floor((jy-1)*ry) + 1
-      j_wrap = modulo(j+1-1,ny_s) + 1
-    dy = (jy-1)*ry-(j-1)
+        j = floor((jy-1)*ry) + 1
+        j_wrap = modulo(j+1-1,ny_s) + 1
+        dy = (jy-1)*ry-(j-1)
         do jx=1,nx_b
-        i = floor((jx-1)*rx) + 1
-        i_wrap = modulo(i+1-1,nx_s) + 1
-        dx = (jx-1)*rx-(i-1)
+            i = floor((jx-1)*rx) + 1
+            i_wrap = modulo(i+1-1,nx_s) + 1
+            dx = (jx-1)*rx-(i-1)
 
-    P1 = (1.-dx)*u_s(i,j,k) + dx*u_s(i_wrap,j,k)
-    P2 = (1.-dx)*u_s(i,j,k+1) + dx*u_s(i_wrap,j,k+1)
-    P3 = (1.-dx)*u_s(i,j_wrap,k) + dx*u_s(i_wrap,j_wrap,k)
-    P4 = (1.-dx)*u_s(i,j_wrap,k+1) + dx*u_s(i_wrap,j_wrap,k+1)
-    P5 = (1.-dy)*P1 + dy*P3 
-    P6 = (1.-dy)*P2 + dy*P4
+            P1 = (1.-dx)*u_s(i,j,k) + dx*u_s(i_wrap,j,k)
+            P2 = (1.-dx)*u_s(i,j,k+1) + dx*u_s(i_wrap,j,k+1)
+            P3 = (1.-dx)*u_s(i,j_wrap,k) + dx*u_s(i_wrap,j_wrap,k)
+            P4 = (1.-dx)*u_s(i,j_wrap,k+1) + dx*u_s(i_wrap,j_wrap,k+1)
+            P5 = (1.-dy)*P1 + dy*P3 
+            P6 = (1.-dy)*P2 + dy*P4
 
-        u_b(jx,jy,jz) = (1.-dz)*P5 + dz*P6
+            u_b(jx,jy,jz) = (1.-dz)*P5 + dz*P6
 
         end do
     end do
-  end do
+end do
 
 ! still have to do nz_b level
 do jy=1,ny_b
     j = floor((jy-1)*ry) + 1
     j_wrap = modulo(j+1-1,ny_s) + 1
-dy = (jy-1)*ry-(j-1)
+    dy = (jy-1)*ry-(j-1)
     do jx=1,nx_b
-    i = 1 + floor((jx-1)*rx)
-    i_wrap = modulo(i+1-1,nx_s) + 1
-    dx = (jx-1)*rx-(i-1)
+        i = 1 + floor((jx-1)*rx)
+        i_wrap = modulo(i+1-1,nx_s) + 1
+        dx = (jx-1)*rx-(i-1)
 
-    P1 = (1.-dx)*u_s(i,j,nz_s) + dx*u_s(i_wrap,j,nz_s)
-    P2 = (1.-dx)*u_s(i,j_wrap,nz_s) + dx*u_s(i_wrap,j_wrap,nz_s)
+        P1 = (1.-dx)*u_s(i,j,nz_s) + dx*u_s(i_wrap,j,nz_s)
+        P2 = (1.-dx)*u_s(i,j_wrap,nz_s) + dx*u_s(i_wrap,j_wrap,nz_s)
 
-    u_b(jx,jy,nz_b) = (1.-dy)*P1 + dy*P2
+        u_b(jx,jy,nz_b) = (1.-dy)*P1 + dy*P2
 
     end do
 
-  end do
+end do
 
-  end subroutine interpolate
+end subroutine interpolate
 
 

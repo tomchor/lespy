@@ -70,6 +70,56 @@ def from_Phi(Rs, rNorm):
     return np.array(Lcs), np.array(Gcs)
 
 
+def fromCond5(Rs, rNorm, p0=(30., 1e-1), maxG=10, upperlim=100):
+    """
+    Must be a 3D array with index 2 being radian conditional density and
+    index 0 and 1 being whatever
+    """
+    import numpy as np
+    from scipy.optimize import curve_fit
+    from ..utils import nearest
+    import warnings
+    warnings.filterwarnings('error')
+
+    #-------
+    # Remove point where it's zero
+    Rs=Rs[1:]
+    rNorm=rNorm[:,:,1:]
+    #-------
+
+    #--------
+    # Optimization:
+    xmax=nearest(Rs, upperlim, return_idx=True)[0]
+#    stride = int(max(1, xmax / 10))
+
+    X_sparse=Rs[0:xmax]
+    Y_sparse=rNorm[:,:,0:xmax]
+    #--------
+
+    Lcs = []
+    Gcs = []
+    #-----
+    # Iterate in variable
+    for iv, rnm0 in enumerate(rNorm):
+        print('Curve-fitting for variable {} of {}.'.format(iv+1, len(rNorm)))
+        Lcs.append([])
+        Gcs.append([])
+        #-----
+        # Iterate in time
+        for it, rnm1 in enumerate(rnm0):
+            p1 = curve_fit(power_law, X_sparse, Y_sparse[iv,it], p0=p0, check_finite=False, 
+                    bounds=([1e-5,0], [np.inf,maxG]))[0]
+
+            rc, gamma = curve_fit(power_law, Rs, rnm1, p0=p1, check_finite=False, 
+                    bounds=([1e-5,0], [np.inf,maxG]))[0]
+            Lcs[iv].append(rc)
+            Gcs[iv].append(gamma)
+            #------
+        #-----
+    #-----
+    return np.array(Lcs), np.array(Gcs)
+
+
 
 def fromCond4(Rs, rNorm, p0=(30., 1e-1), maxG=10):
     """
@@ -132,7 +182,7 @@ def normalizeVars(Vars):
 
 
 def get_L(Vars, simulation=None, p0=(30, 1e-1), maxG=10, 
-        return_phi=False, pre_process=True):
+        return_phi=False, pre_process=True, method=4):
     """
     Vars should be 4D, with x, y being the last two dimensions
 
@@ -165,8 +215,6 @@ def get_L(Vars, simulation=None, p0=(30, 1e-1), maxG=10,
 
     #-------
     # We obtain the homogeneity function using the fastest method
-#    if func==None:
-#        func=stats.condnorm2d_fft
     Rs, Phi = radial_homogFunction(Vars, simulation=sim)
     #-------
 
@@ -174,7 +222,6 @@ def get_L(Vars, simulation=None, p0=(30, 1e-1), maxG=10,
     if np.ma.is_masked(Vars):
         mask2D=Vars.mask.any(axis=(2,3))
     #-------
-
 
     #-------
     # We can return Phi for checking or return the scales (default)
@@ -189,8 +236,10 @@ def get_L(Vars, simulation=None, p0=(30, 1e-1), maxG=10,
         return Rs, Phi
 
     else:
-        #Ls, Gammas = from_Phi(Rs, Phi)
-        Ls, Gammas = fromCond4(Rs, Phi, p0=p0, maxG=maxG)
+        if method==4:
+            Ls, Gammas = fromCond4(Rs, Phi, p0=p0, maxG=maxG)
+        elif method==5:
+            Ls, Gammas = fromCond5(Rs, Phi, p0=p0, maxG=maxG)
 
         #------
         # We put nans where there's a mask in Vars because the curve_fit ignores masks

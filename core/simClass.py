@@ -22,6 +22,7 @@ class Simulation(object):
             self.timelength = timelength
             self.u_scale = u_scale
             self.inversion_depth = inversion_depth
+            self.inv_depth = inversion_depth
             self.__dict__.update(kwargs)
         #------------
 
