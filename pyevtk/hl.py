@@ -1,5 +1,5 @@
 # ***********************************************************************************
-# * Copyright 2010 - 2014 Paulo A. Herrera. All rights reserved.                    * 
+# * Copyright 2010 - 2016 Paulo A. Herrera. All rights reserved.                    * 
 # *                                                                                 *
 # * Redistribution and use in source and binary forms, with or without              *
 # * modification, are permitted provided that the following conditions are met:     *
@@ -28,8 +28,6 @@
 # *  export data to binary VTK file.   *
 # **************************************
 
-# Following line changed to py3 by tomaschor
-#from vtk import * # VtkFile, VtkUnstructuredGrid, etc.
 from .vtk import * # VtkFile, VtkUnstructuredGrid, etc.
 import numpy as np
 
@@ -244,4 +242,272 @@ def pointsToVTK(path, x, y, z, data):
 
     w.save()
     return w.getFileName()
+
+# ==============================================================================
+def linesToVTK(path, x, y, z, cellData = None, pointData = None):
+    """
+        Export line segments that joint 2 points and associated data.
+
+        PARAMETERS:
+            path: name of the file without extension where data should be saved.
+            x, y, z: 1D arrays with coordinates of the vertex of the lines. It is assumed that each line.
+                     is defined by two points, then the lenght of the arrays should be equal to 2 * number of lines.
+            cellData: dictionary with variables associated to each line.
+                  Keys should be the names of the variable stored in each array.
+                  All arrays must have the same number of elements.         
+            pointData: dictionary with variables associated to each vertex.
+                  Keys should be the names of the variable stored in each array.
+                  All arrays must have the same number of elements.
+
+        RETURNS:
+            Full path to saved file.
+
+    """
+    assert (x.size == y.size == z.size)
+    assert (x.size % 2 == 0)
+    npoints = x.size
+    ncells = x.size / 2
+    
+    # Check cellData has the same size that the number of cells
+    
+    # create some temporary arrays to write grid topology
+    offsets = np.arange(start = 2, step = 2, stop = npoints + 1, dtype = 'int32')   # index of last node in each cell
+    connectivity = np.arange(npoints, dtype = 'int32')                              # each point is only connected to itself
+    cell_types = np.empty(npoints, dtype = 'uint8') 
+   
+    cell_types[:] = VtkLine.tid
+
+    w = VtkFile(path, VtkUnstructuredGrid)
+    w.openGrid()
+    w.openPiece(ncells = ncells, npoints = npoints)
+    
+    w.openElement("Points")
+    w.addData("points", (x,y,z))
+    w.closeElement("Points")
+    w.openElement("Cells")
+    w.addData("connectivity", connectivity)
+    w.addData("offsets", offsets)
+    w.addData("types", cell_types)
+    w.closeElement("Cells")
+    
+    _addDataToFile(w, cellData = cellData, pointData = pointData)
+
+    w.closePiece()
+    w.closeGrid()
+    w.appendData( (x,y,z) )
+    w.appendData(connectivity).appendData(offsets).appendData(cell_types)
+
+    _appendDataToFile(w, cellData = cellData, pointData = pointData)
+
+    w.save()
+    return w.getFileName()
+
+# ==============================================================================
+def polyLinesToVTK(path, x, y, z, pointsPerLine, cellData = None, pointData = None):
+    """
+        Export line segments that joint 2 points and associated data.
+
+        PARAMETERS:
+            path: name of the file without extension where data should be saved.
+            x, y, z: 1D arrays with coordinates of the vertices of the lines. It is assumed that each line.
+                     has diffent number of points.
+            pointsPerLine: 1D array that defines the number of points associated to each line. Thus, 
+                           the length of this array define the number of lines. It also implicitly 
+                           defines the connectivity or topology of the set of lines. It is assumed 
+                           that points that define a line are consecutive in the x, y and z arrays.
+            cellData: Dictionary with variables associated to each line.
+                      Keys should be the names of the variable stored in each array.
+                      All arrays must have the same number of elements.         
+            pointData: Dictionary with variables associated to each vertex.
+                       Keys should be the names of the variable stored in each array.
+                       All arrays must have the same number of elements.
+
+        RETURNS:
+            Full path to saved file.
+
+    """
+    assert (x.size == y.size == z.size)
+    npoints = x.size
+    ncells = pointsPerLine.size
+    
+    # create some temporary arrays to write grid topology
+    offsets = np.zeros(ncells, dtype = 'int32')         # index of last node in each cell
+    ii = 0
+    for i in range(ncells):
+        ii += pointsPerLine[i]
+        offsets[i] = ii
+    
+    connectivity = np.arange(npoints, dtype = 'int32')      # each line connects points that are consecutive
+   
+    cell_types = np.empty(npoints, dtype = 'uint8') 
+    cell_types[:] = VtkPolyLine.tid
+
+    w = VtkFile(path, VtkUnstructuredGrid)
+    w.openGrid()
+    w.openPiece(ncells = ncells, npoints = npoints)
+    
+    w.openElement("Points")
+    w.addData("points", (x,y,z))
+    w.closeElement("Points")
+    w.openElement("Cells")
+    w.addData("connectivity", connectivity)
+    w.addData("offsets", offsets)
+    w.addData("types", cell_types)
+    w.closeElement("Cells")
+    
+    _addDataToFile(w, cellData = cellData, pointData = pointData)
+
+    w.closePiece()
+    w.closeGrid()
+    w.appendData( (x,y,z) )
+    w.appendData(connectivity).appendData(offsets).appendData(cell_types)
+
+    _appendDataToFile(w, cellData = cellData, pointData = pointData)
+
+    w.save()
+    return w.getFileName()
+
+# ==============================================================================
+def unstructuredGridToVTK(path, x, y, z, connectivity, offsets, cell_types, cellData = None, pointData = None):
+    """
+        Export unstructured grid and associated data.
+
+        PARAMETERS:
+            path: name of the file without extension where data should be saved.
+            x, y, z: 1D arrays with coordinates of the vertices of cells. It is assumed that each element
+                     has diffent number of vertices.
+            connectivity: 1D array that defines the vertices associated to each element. 
+                          Together with offset define the connectivity or topology of the grid. 
+                          It is assumed that vertices in an element are listed consecutively.
+            offsets: 1D array with the index of the last vertex of each element in the connectivity array.
+                     It should have length nelem, where nelem is the number of cells or elements in the grid.
+            cell_types: 1D array with an integer that defines the cell type of each element in the grid.
+                        It should have size nelem. This should be assigned from evtk.vtk.VtkXXXX.tid, where XXXX represent
+                        the type of cell. Please check the VTK file format specification for allowed cell types.                       
+            cellData: Dictionary with variables associated to each line.
+                      Keys should be the names of the variable stored in each array.
+                      All arrays must have the same number of elements.        
+            pointData: Dictionary with variables associated to each vertex.
+                       Keys should be the names of the variable stored in each array.
+                       All arrays must have the same number of elements.
+
+        RETURNS:
+            Full path to saved file.
+
+    """
+    assert (x.size == y.size == z.size)
+    npoints = x.size
+    ncells = cell_types.size
+    assert (offsets.size == ncells)
+    
+    w = VtkFile(path, VtkUnstructuredGrid)
+    w.openGrid()
+    w.openPiece(ncells = ncells, npoints = npoints)
+    
+    w.openElement("Points")
+    w.addData("points", (x,y,z))
+    w.closeElement("Points")
+    w.openElement("Cells")
+    w.addData("connectivity", connectivity)
+    w.addData("offsets", offsets)
+    w.addData("types", cell_types)
+    w.closeElement("Cells")
+    
+    _addDataToFile(w, cellData = cellData, pointData = pointData)
+
+    w.closePiece()
+    w.closeGrid()
+    w.appendData( (x,y,z) )
+    w.appendData(connectivity).appendData(offsets).appendData(cell_types)
+
+    _appendDataToFile(w, cellData = cellData, pointData = pointData)
+
+    w.save()
+    return w.getFileName()
+    
+# ==============================================================================
+def cylindricalToVTK(path, x, y, z, sh, cellData):
+    """
+        Export points and associated data as an unstructured grid.
+        
+        A cylindrical mesh connectivity is assumed. That is, the mesh is a 
+        function
+        
+        f: D --> R^3
+        (x,y,z)=f(i,j,k)
+        
+        where D is the cartesian product of graphs between a cycle (C_j)
+        and two path graphs (P_i and P_k).
+        
+        D= P_i x C_j x P_k
+        
+        for further explanation see:
+        https://en.wikipedia.org/wiki/Cartesian_product_of_graphs
+        https://en.wikipedia.org/wiki/Path_graph
+        https://en.wikipedia.org/wiki/Cycle_graph
+        
+
+        PARAMETERS:
+            path: name of the file without extension where data should be saved.
+            x, y, z: 1D arrays with coordinates of the points.
+            sh: number of cells in each direction
+            cellData: dictionary with variables associated to each cell.
+                  Keys should be the names of the variable stored in each array.
+                  All arrays must have the same number of elements.
+
+        RETURNS:
+            Full path to saved file.
+
+    """
+    assert(x.size==y.size==z.size)
+    s=sh+(1,0,1)
+    npoints = np.prod(s)
+    ncells = np.prod(sh)
+    
+    
+    assert(npoints==x.size)
+    
+    # create some temporary arrays to write grid topology
+    offsets = np.arange(start = 8, stop = 8*(ncells + 1), step=8, dtype = 'int32')   # index of last node in each cell
+    cell_types = np.empty(ncells, dtype = 'uint8') 
+    cell_types[:] = VtkHexahedron.tid
+    
+    # create connectivity
+    connectivity = np.empty(8*ncells, dtype = 'int32') 
+    i=0
+
+    for zeta in range(0,sh[2]):
+        for tita in range(0,sh[1]):
+            for r in range(0,sh[0]):
+                for d in ((0,0,0),(1,0,0),(1,1,0),(0,1,0),(0,0,1),(1,0,1),(1,1,1),(0,1,1)):
+                    connectivity[i]=r+d[0]+s[0]*((tita+d[1])%s[1])+s[0]*s[1]*(zeta+d[2])
+                    i+=1
+
+    w = VtkFile(path, VtkUnstructuredGrid)
+    w.openGrid()
+    w.openPiece(ncells = ncells, npoints = npoints)
+    
+    w.openElement("Points")
+    w.addData("points", (x,y,z))
+    w.closeElement("Points")
+    w.openElement("Cells")
+    w.addData("connectivity", connectivity)
+    w.addData("offsets", offsets)
+    w.addData("types", cell_types)
+    w.closeElement("Cells")
+    
+    # adaptar cellData segun formato!!! 
+    
+    _addDataToFile(w, cellData = cellData, pointData = None)
+
+    w.closePiece()
+    w.closeGrid()
+    w.appendData( (x,y,z) )
+    w.appendData(connectivity).appendData(offsets).appendData(cell_types)
+
+    _appendDataToFile(w, cellData = cellData, pointData = None)
+
+    w.save()
+    return w.getFileName()
+
 

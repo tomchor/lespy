@@ -22,12 +22,15 @@ class Simulation(object):
             self.timelength = timelength
             self.u_scale = u_scale
             self.inversion_depth = inversion_depth
+            self.inv_depth = inversion_depth
             self.__dict__.update(kwargs)
         #------------
 
         self.w_star = self.get_w_star()
         self.vel_settling=np.array(self.vel_settling)
         self.droplet_sizes=physics.get_dropletSize(self.vel_settling, nominal=True, nowarning=True).astype(int)
+        if type(self.droplet_sizes)!=np.ndarray:
+            self.droplet_sizes=np.array([self.droplet_sizes])
 
 
     def check(self, full=True):
@@ -49,8 +52,7 @@ class Simulation(object):
     def get_w_star(self):
         """Calculates the convective scale"""
         from .. import physics as phys
-        w_star = (phys.g*self.wt_s*self.inversion_depth/self.t_init)**(1./3.)
-        return w_star
+        return phys.w_star(self)
 
 
     def DataArray(self, array, timestamps=None, attrs=None, dims=None, coords=None):
@@ -90,7 +92,7 @@ class Simulation(object):
     def __str__(self):
         buff='Simulation Parameters\n'+ '-'*21
         buff += '\nEndless    : {}\n'.format(self.flag_endless)
-        buff += 'dt:        : {} s'.format(self.dt)
+        buff += 'dt:        : {} s\n'.format(self.dt)
         buff+= self.domain.__str__()
         return buff
     def __repr__(self):

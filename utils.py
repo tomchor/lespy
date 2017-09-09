@@ -78,7 +78,7 @@ def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
             if not clim:
                 logarray = np.log10(np.abs(array))
                 clim = (np.nanpercentile(logarray, 20), np.nanpercentile(logarray, 95))
-            levels_con = 10**np.linspace(clim[0], clim[1], nseps)
+            levels_con = np.logspace(np.log10(clim[0]), np.log10(clim[1]), nseps)
             ticklabels = levels_con#np.power(10.0, levels_con)
         else:
             if not clim:
@@ -162,25 +162,30 @@ def np2vtr(arrays, outname):
     dataarray = xr.DataArray(np_array, dims=['time', 'x', 'y'], coords={'time':timestamps', 'x':x_array, 'y':y_array})
     """
     from .pyevtk.hl import gridToVTK
+    import numpy as np
+
     coords = list(arrays.values())[0].coords
     x = coords['x'].values
     y = coords['y'].values
     z = coords['z'].values
+    points={}
+    for key, val in arrays.items():
+        points.update({ key:np.array(val) })
 
     if 'time' not in coords.dims:
-        try:
-            gridToVTK(outname, x,y,z, pointData = arrays)
-        except AssertionError:
-            arrays = { key:val.values for key,val in arrays.items() }
-            gridToVTK(outname, x,y,z, pointData = arrays)
+        gridToVTK(outname, x,y,z, pointData = points)
+#        try:
+#            gridToVTK(outname, x,y,z, pointData = points)
+#        except AssertionError:
+#            arrays = { key:val.values for key,val in arrays.items() }
+#            gridToVTK(outname, x,y,z, pointData = arrays)
     else:
         timestamps = coords['time']
         for tstep in timestamps:
             tstep = int(tstep)
             print('Writing t=',tstep,'to vtr')
-            points={}
-            for key, val in arrays.items():
-                points.update({ key:val.sel(time=tstep).values })
+            #for key, val in arrays.items():
+            #    points.update({ key:val.sel(time=tstep).values })
             gridToVTK(outname.format(tstep), x,y,z, pointData = points)
 
     return
@@ -248,7 +253,8 @@ def get_dataarray(pcons, simulation=None, with_time=False):
             import numpy as np
             if (len(pcon.shape) - time) == 4:
                 coords.update({'z':sim.domain.z})
-            coords.update({'size':np.arange(pcon.shape[-1])})
+            #coords.update({'size':np.arange(pcon.shape[-1])})
+            coords.update({'size':sim.droplet_sizes})
         #-------
         if (len(pcon.shape)-time) == 5:
             raise ValueError("Too many dimensions in array")

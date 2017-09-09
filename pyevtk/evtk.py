@@ -1,5 +1,5 @@
 ﻿# ***********************************************************************************
-# * Copyright 2010 - 2014 Paulo A. Herrera. All rights reserved.                    * 
+# * Copyright 2010 - 2016 Paulo A. Herrera. All rights reserved.                    * 
 # *                                                                                 *
 # * Redistribution and use in source and binary forms, with or without              *
 # * modification, are permitted provided that the following conditions are met:     *
@@ -58,11 +58,13 @@ def writeArrayToFile(stream, data):
     assert (data.ndim == 1 or data.ndim == 3)
     fmt = _get_byte_order_char() + str(data.size) + np_to_struct[data.dtype.name]  # > for big endian
 
+    # Check if array is contiguous
+    assert (data.flags['C_CONTIGUOUS'] or data.flags['F_CONTIGUOUS'])
+    
     # NOTE: VTK expects data in FORTRAN order
-    if data.flags['C_CONTIGUOUS']: #this is only relevant for multidimensional arrays
-        dd = np.asfortranarray(data.T).ravel()
-    else:
-        dd = data.ravel()
+    # This is only needed when a multidimensional array has C-layout
+    dd = np.ravel(data, order='F')
+
     bin = struct.pack(fmt, *dd)
     stream.write(bin)
     
@@ -76,20 +78,18 @@ def writeArraysToFile(stream, x, y, z):
     itemsize = x.dtype.itemsize
 
     fmt = _get_byte_order_char() + str(1) + np_to_struct[x.dtype.name]  # > for big endian
-    if (x.flags['C_CONTIGUOUS']):  
-        xx = np.asfortranarray(x.T).ravel()
-    else:
-        xx = x.ravel()
-
-    if (y.flags['C_CONTIGUOUS']):
-        yy = np.asfortranarray(y.T).ravel()
-    else:
-        yy = y.ravel()
-
-    if (z.flags['C_CONTIGUOUS']):
-        zz = np.asfortranarray(z.T).ravel()
-    else:
-        zz = z.ravel()    
+    
+    # Check if arrays are contiguous
+    assert (x.flags['C_CONTIGUOUS'] or x.flags['F_CONTIGUOUS'])
+    assert (y.flags['C_CONTIGUOUS'] or y.flags['F_CONTIGUOUS'])
+    assert (z.flags['C_CONTIGUOUS'] or z.flags['F_CONTIGUOUS'])
+    
+    
+    # NOTE: VTK expects data in FORTRAN order
+    # This is only needed when a multidimensional array has C-layout
+    xx = np.ravel(x, order='F')
+    yy = np.ravel(y, order='F')
+    zz = np.ravel(z, order='F')    
         
     # eliminate this loop by creating a composed array.
     for i in range(nitems):

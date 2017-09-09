@@ -94,7 +94,7 @@ class Output(object):
                 opfiles.loc[i, 'con_tt'] = flist
         #---------
 
-        self.binaries = opfiles
+        self.binaries = opfiles.sort_index()
         print('... done reading and organizing.')
         return
 
@@ -195,7 +195,7 @@ class Output(object):
                     print(i, ndtime, n_con)
                     for patch in cons.loc[ndtime][n_i]:
                         ndtime, ncon, row, col = utils.nameParser(patch)
-                        con = routines.readBinary2(patch, simulation=sim, read_pcon=True, read_just_pcon=True, trim=trim)
+                        con = routines.readBinary2(patch, simulation=sim, read_pcon=True, only_pcon=True, trim=trim)
         
                         min_yj = (row - min(rows))*sim.ny
                         max_yj = min_yj + sim.ny
@@ -232,7 +232,7 @@ class Output(object):
 
             for i, fname in enumerate(cons):
                 print(i, cons.index[i], fname)
-                con = routines.readBinary2(fname, simulation=sim, n_con=sim.n_con, read_just_pcon=True)
+                con = routines.readBinary2(fname, simulation=sim, n_con=sim.n_con, only_pcon=True)
 
                 #--------
                 # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge

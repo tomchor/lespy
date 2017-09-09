@@ -1,5 +1,5 @@
 # ***********************************************************************************
-# * Copyright 2010 - 2014 Paulo A. Herrera. All rights reserved.                    * 
+# * Copyright 2010 - 2016 Paulo A. Herrera. All rights reserved.                    * 
 # *                                                                                 *
 # * Redistribution and use in source and binary forms, with or without              *
 # * modification, are permitted provided that the following conditions are met:     *
@@ -28,9 +28,6 @@
 # *  export data to binary VTK file.   *
 # **************************************
 
-# Following lines changed to py3, by tomaschor
-#from evtk import writeBlockSize, writeArrayToFile, writeArraysToFile
-#from xml import XmlWriter
 from .evtk import writeBlockSize, writeArrayToFile, writeArraysToFile
 from .xml import XmlWriter
 import sys
@@ -128,8 +125,6 @@ def _mix_extents(start, end):
     return string
 
 def _array_to_string(a):
-    # Next line was changed by tomaschor @ 2017-01-05 to adapt to py3
-    #s = "".join([`num` + " " for num in a])
     s = "".join([repr(num) + " " for num in a])
     return s
 
