@@ -1,4 +1,4 @@
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 print('Initiating lespy version %s'%__version__, end='...')
 from .core import *
 from .routines import *
