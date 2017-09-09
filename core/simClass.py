@@ -52,8 +52,7 @@ class Simulation(object):
     def get_w_star(self):
         """Calculates the convective scale"""
         from .. import physics as phys
-        w_star = (phys.g*self.wt_s*self.inversion_depth/self.t_init)**(1./3.)
-        return w_star
+        return phys.w_star(self)
 
 
     def DataArray(self, array, timestamps=None, attrs=None, dims=None, coords=None):

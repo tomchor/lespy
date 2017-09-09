@@ -308,14 +308,22 @@ def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=
     t_conv=sim.inv_depth/w_star
     count=sim.p_count
     Z=sim.domain.z_w[:-1]
+
+    def fromtxt(fname, **kw_args):
+        kw_args.update(kwargs)
+        return np.genfromtxt(fname, **kw_args)
     
     #-----
     # Read wT
-    sgs_t3=np.genfromtxt(path+'/aver_sgs_t3.out', skip_header=Nstart//count)
+    print('Opening', path+'/aver_sgs_t3.out')
+    sgs_t3=fromtxt(path+'/aver_sgs_t3.out', skip_header=Nstart//count)
     ndtimes=sgs_t3[:,0]
     sgs_t3=sgs_t3[:,1:]*sim.t_scale*sim.u_scale/sim.wt_s
     
-    res_t3=np.genfromtxt(path+'/aver_wt.out', skip_header=Nstart//count)*sim.t_scale*sim.u_scale/sim.wt_s
+    print('Using', nblocks*block, 'lines of', len(sgs_t3), 'lines read from files.')
+
+    print('Opening', path+'/aver_sgs_wt.out')
+    res_t3=fromtxt(path+'/aver_wt.out', skip_header=Nstart//count)*sim.t_scale*sim.u_scale/sim.wt_s
     res_t3=res_t3[:,1:]
     
     wT=res_t3+sgs_t3
@@ -325,28 +333,32 @@ def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=
     
     #-----
     # Read u2
-    res_u2=np.genfromtxt(path+'/aver_u2.out', skip_header=Nstart//count)*uw_scale**2
+    print('Opening', path+'/aver_u2.out')
+    res_u2=fromtxt(path+'/aver_u2.out', skip_header=Nstart//count)*uw_scale**2
     res_u2=res_u2[:,1:]
     res_u2_mean=res_u2[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
     #-----
     
     #-----
     # Read w2
-    res_w2=np.genfromtxt(path+'/aver_w2.out', skip_header=Nstart//count)*uw_scale**2
+    print('Opening', path+'/aver_w2.out')
+    res_w2=fromtxt(path+'/aver_w2.out', skip_header=Nstart//count)*uw_scale**2
     res_w2=res_w2[:,1:]
     res_w2_mean=res_w2[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
     #-----
     
     #-----
     # Read w3
-    res_w3=-np.genfromtxt(path+'/aver_w3.out', skip_header=Nstart//count)*uw_scale**3
+    print('Opening', path+'/aver_w3.out')
+    res_w3=-fromtxt(path+'/aver_w3.out', skip_header=Nstart//count)*uw_scale**3
     res_w3=res_w3[:,1:]
     res_w3_mean=res_w3[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
     #-----
     
     #-----
     # Read T2
-    res_T2=np.genfromtxt(path+'/aver_var_t.out', skip_header=Nstart//count)*sim.t_scale*w_star/(sim.wt_s)
+    print('Opening', path+'/aver_var_t.out')
+    res_T2=fromtxt(path+'/aver_var_t.out', skip_header=Nstart//count)*sim.t_scale*w_star/(sim.wt_s)
     res_T2=res_T2[:,1:]
     res_T2_mean=res_T2[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
     #-----
@@ -373,16 +385,28 @@ def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=
     axes[1,0].plot(ndtimes, res_u2.max(1))
     #-----
     
-    #-----
-    # T^2
-    axes[0,1].set_title('$T^2$')
-    axes[1,1].set_title('MAX$(T^2)$')
-    #axes[0,1].plot(res_T2[-30:].mean(0), Z)
-    for i, arr_i in enumerate(res_T2_mean):
-        axes[0,1].plot(arr_i, Z, label='t{}'.format(i))
-    axes[0,1].legend()
-    axes[1,1].plot(ndtimes, res_T2.max(1))
-    #-----
+    if 1:
+        #-----
+        # SGS_t
+        sgs_t3_mean=sgs_t3[-nblocks*block:].reshape(block,-1,len(Z)).mean(0)
+        axes[0,1].set_title('SGS $wT$')
+        axes[1,1].set_title('MAX(SGS $T^2)$')
+        for i, arr_i in enumerate(sgs_t3_mean):
+            axes[0,1].plot(arr_i, Z, label='t{}'.format(i))
+        axes[0,1].legend()
+        axes[1,1].plot(ndtimes, sgs_t3.max(1))
+        #-----
+    else:
+        #-----
+        # T^2
+        axes[0,1].set_title('$T^2$')
+        axes[1,1].set_title('MAX$(T^2)$')
+        #axes[0,1].plot(res_T2[-30:].mean(0), Z)
+        for i, arr_i in enumerate(res_T2_mean):
+            axes[0,1].plot(arr_i, Z, label='t{}'.format(i))
+        axes[0,1].legend()
+        axes[1,1].plot(ndtimes, res_T2.max(1))
+        #-----
     
     #-----
     # w^2

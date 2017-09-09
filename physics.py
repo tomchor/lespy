@@ -7,6 +7,11 @@ units['g'] = 'm/s**2'
 rho_w = 1031.
 units['rho_w'] = 'kg/m**3'
 
+# Mass density of oil
+rho_oil=859.870
+units['rho_oil'] = 'kg/m**3'
+
+# Heat capacity
 cp_w =  4185.5
 units['cp_w'] = 'J/(kg*K)'
 
@@ -22,45 +27,50 @@ units['mu_w'] = 'Pa*s'
 nu_a = 1.48e-5
 units['nu_a'] = 'm**2/s'
 
-def riseVelocity(diam, rho_d=859.870, rho_w=rho_w, mu=mu_w):
+
+def get_R(d, rho=rho_w, delta_rho=(rho_w-rho_oil), g=9.81, mu=mu_w):
+    ''' Gets the R variable, used to calculate rise velocity '''
+    import numpy as np
+    Nd = 4*rho_w*delta_rho*g*(d**3)/(3*mu_w**2)
+    conds=[ Nd<=73, (73<Nd)*(Nd<=580), (580<Nd)*(Nd<=1.55e7) ]
+    funcs=[]
+    funcs.append( lambda Nd: Nd/24 - 1.7569e-4*(Nd**2) + 6.9252e-7*(Nd**3) - 2.3027e-10*(Nd**4) )
+    funcs.append( lambda Nd: np.power(10, -1.7095 + 1.33438*np.log10(Nd) - 0.11591*np.log10(Nd)**2) )
+    funcs.append( lambda Nd: np.power(10, -1.81391 + 1.34671*np.log10(Nd) - 0.12427*np.log10(Nd)**2 + 0.006344*np.log10(Nd)**3) )
+    return np.piecewise(Nd, conds, funcs)
+
+
+def termVelocity(d, mu=mu_w, rho=rho_w, delta_rho=(rho_w-rho_oil)):
     """
-    Calculates the droplet rise velocity for a droplet of diam (in microns!) in a quiescent fluid
-
-    Parameters
-    ----------
-    diam: float
-        diameter in micrometers
-    rho_d: float
-        mass density of dropplet
-    rho_w: float
-        mass density of fluid
-    mu: float
-        dynamic viscosity of fluid
-
-    Returns
-    -------
-    rise_velocity: float
-        in meters/second
-    """
-    delta_rho = rho_w - rho_d
-    return delta_rho*g*(diam**2.)/(18.*mu)
-
-
-def get_dropletSize(wr, rho_d=859.870, rho_w=rho_w, mu=mu_w, nominal=False, nowarning=False):
-    """
-    Calculates the droplet size in micrometers for a given rise velocity
+    Gets rise velocity of droplets according to Li Zheng and Poojitha D. Yapa, 2000.
+    rho is the density o the fluid (in our case either water or air; default os water)
     """
     import numpy as np
-    delta_rho = rho_w - rho_d
-    diam = np.sqrt(18*mu*wr/(delta_rho*9.81))
+    d=np.asarray(d)
+    conds = [ d<=1e-3, (1e-3<d)*(d<15.e-3) ]
+    funcs = []
+    funcs.append( lambda d: get_R(d, mu=mu, rho=rho, delta_rho=delta_rho)*mu/(rho*d))
+    funcs.append( None )
+    return np.piecewise(d, conds, funcs)
+
+
+def get_dropletSize(wr, mu=mu_w, rho=rho_w, delta_rho=(rho_w-rho_oil), nominal=False, nowarning=False, level=5):
+    """
+    Calculates the droplet size in micrometers for a given set of terminal velocities
+    """
+    import numpy as np
+    D=np.linspace(1e-8, 1e-3, 500)
+    Wr = termVelocity(D, mu=mu, rho=rho, delta_rho=delta_rho)
+    diam = np.interp(wr, Wr, D)
     if nominal:
         if not nowarning: print('In micrometers!')
-        return np.around(1e6*diam, decimals=0)
+        return np.around(10**(level)*diam, decimals=0)*10**(6-level)
     else:
         return diam
 
 
-def get_Ustokes(amp, omega, g=g):
+
+def get_Ustokes(amp, omega, g=g, sigma=None):
     """
     Defines a Ustokes function of the depth z in meters
 
@@ -77,7 +87,8 @@ def get_Ustokes(amp, omega, g=g):
         drift velocity as function of depth
     """
     import numpy as np
-    sigma = np.sqrt(g*omega)
+    if type(sigma)==type(None):
+        sigma = np.sqrt(g*omega)
     Us0 = sigma*omega*(amp**2.)
     def Ustokes(z, angle=None):
         """

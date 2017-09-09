@@ -467,7 +467,7 @@ def plane2(plane, outname=None, which='xy', simulation=None, interpolation=None,
         plt.savefig(outname, bbox_inches='tight')
         plt.close()
         print('done.')
-        return
+        return im
     else:
         return im
 
