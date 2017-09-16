@@ -124,7 +124,12 @@ def droppletTimeScale(diam, rho_d=859.870, mu=1.08e-3):
 
 
 def get_zi(wT, xy_axis=(1,2), simulation=None):
-    """ Calculates the inversion depth as a function of time """
+    """
+    Calculates the inversion depth as a function of time
+    
+    wT has to be a 4D array with dimensinos xy_axis being the x and y dimensions
+    
+    """
     import numpy as np
     wT = np.asarray(wT)
     z_idx = np.argmin(wT.mean(axis=xy_axis), axis=1)
