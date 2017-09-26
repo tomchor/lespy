@@ -439,10 +439,10 @@ def plane2(plane, outname=None, which='xy', simulation=None, interpolation=None,
     # To plot logscale, we must do it manually
     if logscale:
         from matplotlib.colors import LogNorm
-        im = plt.imshow(plane, interpolation=interpolation, animated=True, cmap=cmap, origin='lower',
+        im = plt.imshow(plane.T, interpolation=interpolation, animated=True, cmap=cmap, origin='lower',
                                 norm=LogNorm(vmin=vmin, vmax=vmax), extent=[xmin, xmax, ymin, ymax])
     else:
-        im = plt.imshow(plane, interpolation=interpolation, animated=True, cmap=cmap, origin='lower',
+        im = plt.imshow(plane.T, interpolation=interpolation, animated=True, cmap=cmap, origin='lower',
                                 vmin=vmin, vmax=vmax, extent=[xmin, xmax, ymin, ymax])
     #----------
 

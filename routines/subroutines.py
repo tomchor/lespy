@@ -196,10 +196,23 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     #---------
     # Straightforward
     elif path.basename(fname).startswith('div_z0_t'):
+        #-----
+        # Note that we will multiply by u_star at the bottom of the function, so we only vidide by z_i here
         u = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')/sim.inversion_depth
         v = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')/sim.inversion_depth
         w =-np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')/sim.inversion_depth
+        #-----
     #---------
+
+    elif path.basename(fname).startswith('dvel_srf'):
+        #-----
+        # Note that we will multiply by u_star at the bottom of the function, so we only vidide by z_i here
+        ux = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        uy = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        vx = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        vy = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        wz =-np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        return ux, uy, vx, vy, wz
 
     #---------
     # Here lies the problem! The same file name for a bunch of formats! (should consider change)

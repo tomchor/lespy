@@ -3,7 +3,7 @@ def paramParser(nmlpath):
     """
     #from .nml import read
     from .f90nml import read
-    from os.path import basename, isfile, exists, join, abspath
+    from os.path import isfile, exists, join, abspath, basename, dirname
     from os import remove
 
     if exists(nmlpath):
@@ -17,11 +17,19 @@ def paramParser(nmlpath):
         # If it's a dir, we first look the param.nml in the dir and then in the codebkp dir
         else:
             try:
-                namelist = open(join(nmlpath, 'param.nml'), 'rt')
-                print('Found param.nml at {}'.format(abspath('param.nml')))
+                nmlFpath=join(nmlpath, 'param.nml')
+                namelist = open(nmlFpath, 'rt')
+                #namelist = open(join(nmlpath, 'param.nml'), 'rt')
             except:
-                namelist = open(join(nmlpath, 'codebkp/param.nml'), 'rt')
-                print('Found param.nml at {}'.format(abspath('codebkp/param.nml')))
+                if basename(nmlpath)=='output':
+                    nmlFpath=join(dirname(nmlpath), 'param.nml')
+                    namelist = open(nmlFpath, 'rt')
+                    #namelist = open(join(dirname(nmlpath), 'param.nml'), 'rt')
+                else:
+                    nmlFpath=join(nmlpath, 'codebkp/param.nml')
+                    namelist = open(nmlFpath, 'rt')
+                    #namelist = open(join(nmlpath, 'codebkp/param.nml'), 'rt')
+            print('Found param.nml at {}'.format(nmlFpath))
         #----------
 
     else:

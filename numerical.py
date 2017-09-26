@@ -20,26 +20,57 @@ def integrate(arr, axis=0, dx=1., chunks=1):
         del arr2
         return integ
 
-
-def diff_fft(array, n=1, axis=0, dx=1.):
+def diff_fft2(array, n=1, axis=0, dx=1., zero_nyquist=False):
     """
+    Notes:
+    - Changing the zero frequency doesn't change the output as far
+        as the derivative goes.
+    - Normalizing the fourier coefficients by N, yields derivatives
+        that are 1/N the expected value.
+    - The nyquist frequency is generally pretty small so setting it to
+        zero generally doesn't do anything.
     """
     import numpy as np
     wave = np.fft.rfft(array, axis=axis)
     freq = np.fft.rfftfreq(array.shape[axis], d=dx)
+    print(freq.shape)
     newshape = tuple( 1 if ax!=axis else -1 for ax in range(len(array.shape)) )
     freq = pow(1.j*2.*np.pi, n)*freq.reshape(newshape)
-    return np.fft.irfft(wave*freq, axis=axis)
+
+    ikF = (wave*freq)
+    return np.fft.irfft(ikF, axis=axis)
 
 
 
 
+def diff_fft(array, n=1, axis=0, dx=1., zero_nyquist=False):
+    """
+    Notes:
+    - Changing the zero frequency doesn't change the output as far
+        as the derivative goes.
+    - Normalizing the fourier coefficients by N, yields derivatives
+        that are 1/N the expected value.
+    - The nyquist frequency is generally pretty small so setting it to
+        zero generally doesn't do anything.
+    """
+    import numpy as np
+    wave = np.fft.rfft(array, axis=axis)
+    freq = np.fft.rfftfreq(array.shape[axis], d=dx)
+    print(freq.shape)
+    newshape = tuple( 1 if ax!=axis else -1 for ax in range(len(array.shape)) )
+    freq = pow(1.j*2.*np.pi, n)*freq.reshape(newshape)
 
+    if zero_nyquist:
+        wave[-1]=0
+    ikF = (wave*freq)
+#        ikF = (wave*freq).take(np.arange(0, array.shape[0]//2), axis=axis)
+    return np.fft.irfft(ikF, axis=axis)
 
 
 
 def _correlate(in1, in2, mode="full", axis=0):
-    """Convolve two N-dimensional arrays using FFT.
+    """
+    Convolve two N-dimensional arrays using FFT.
     Convolve `in1` and `in2` using the fast Fourier transform method, with
     the output size determined by the `mode` argument.
     This is generally much faster than `convolve` for large arrays (n > ~500),
