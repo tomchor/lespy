@@ -16,6 +16,7 @@ def paramParser(nmlpath):
         #----------
         # If it's a dir, we first look the param.nml in the dir and then in the codebkp dir
         else:
+            nmlpath=abspath(nmlpath)
             try:
                 nmlFpath=join(nmlpath, 'param.nml')
                 namelist = open(nmlFpath, 'rt')
