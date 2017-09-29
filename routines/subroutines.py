@@ -204,9 +204,13 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
         #-----
     #---------
 
+    elif path.basename(fname).startswith('vel_srf'):
+        u = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale
+        v = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale
+        return u, v
+
+ 
     elif path.basename(fname).startswith('dvel_srf'):
-        #-----
-        # Note that we will multiply by u_star at the bottom of the function, so we only vidide by z_i here
         ux = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
         uy = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
         vx = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth

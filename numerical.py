@@ -43,6 +43,22 @@ def diff_fft(array, n=1, axis=0, dx=1., zero_nyquist=False):
     return np.fft.irfft(ikF, axis=axis)
 
 
+def ax_replace(arr, indices, val, axis):
+    s = [slice(None)]*arr.ndim
+    s[axis] = indices
+    arr[s] = val
+
+
+def recover_cont(F, axes=(0,1), coeff=1):
+    import numpy as np
+    f_c = np.fft.fft2(F, axes=axes)
+    for ax in axes:
+        nx=F.shape[ax]
+        f_c.swapaxes(0, ax)[nx//2] = 0
+    #f_c[nx//2]=0.
+    #f_c[:,ny//2]=0.
+    return np.fft.ifft2(coeff*f_c, axes=axes)
+
 
 def _correlate(in1, in2, mode="full", axis=0):
     """

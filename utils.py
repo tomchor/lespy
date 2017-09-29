@@ -60,15 +60,16 @@ def nameParser(fname):
     if 'vel_sc' in fname:
         start='vel_sc'
 
-    if 'vel_t' in fname:
+    elif 'vel_t' in fname:
         start='vel_t'
 
-    if 'temp_t' in fname:
+    elif 'temp_t' in fname:
         start='temp_t'
 
-    if 'div_z0_t' in fname:
+    elif 'div_z0_t' in fname:
         start='div_z0_t'
-
+    else:
+        return None
 
     ndtime = fname.strip(start).strip('.out')
     return int(ndtime)
