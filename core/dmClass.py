@@ -88,8 +88,8 @@ class Domain(object):
         if type(array) != type(None):
             return x,y,z
         else:
-            self.x = x
-            self.y = y
+            self.x = x+self.dx/2
+            self.y = y+self.dy/2
             self.z = z
             self.z_u = z-self.dz/2
             self.z_w = z

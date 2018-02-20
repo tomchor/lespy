@@ -320,9 +320,14 @@ def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=
     sim=simulation
 
     w_star=sim.w_star
-    uw_scale=sim.u_scale/w_star
+    u_scale=sim.u_scale
+    if use_deardorff:
+        uw_scale=sim.u_scale/w_star
+        t_conv=sim.inv_depth/w_star
+    else:
+        uw_scale=sim.u_scale/u_scale
+        t_conv=np.inf
     t_star=sim.inv_depth/sim.u_scale
-    t_conv=sim.inv_depth/w_star
     count=sim.p_count
     Z=sim.domain.z_w[:-1]
 
@@ -335,12 +340,18 @@ def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=
     print('Opening', path+'/aver_sgs_t3.out')
     sgs_t3=fromtxt(path+'/aver_sgs_t3.out', skip_header=Nstart//count)
     ndtimes=sgs_t3[:,0]
-    sgs_t3=sgs_t3[:,1:]*sim.t_scale*sim.u_scale/sim.wt_s
+    if use_deardorff:
+        sgs_t3=sgs_t3[:,1:]*sim.t_scale*sim.u_scale/sim.wt_s
+    else:
+        sgs_t3=sgs_t3[:,1:]
     
     print('Using', nblocks*block, 'lines of', len(sgs_t3), 'lines read from files.')
 
     print('Opening', path+'/aver_sgs_wt.out')
-    res_t3=fromtxt(path+'/aver_wt.out', skip_header=Nstart//count)*sim.t_scale*sim.u_scale/sim.wt_s
+    if use_deardorff:
+        res_t3=fromtxt(path+'/aver_wt.out', skip_header=Nstart//count)*sim.t_scale*sim.u_scale/sim.wt_s
+    else:
+        res_t3=fromtxt(path+'/aver_wt.out', skip_header=Nstart//count)
     res_t3=res_t3[:,1:]
     
     wT=res_t3+sgs_t3

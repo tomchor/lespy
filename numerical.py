@@ -57,7 +57,7 @@ def recover_cont(F, axes=(0,1), coeff=1):
         f_c.swapaxes(0, ax)[nx//2] = 0
     #f_c[nx//2]=0.
     #f_c[:,ny//2]=0.
-    return np.fft.ifft2(coeff*f_c, axes=axes)
+    return np.real(np.fft.ifft2(coeff*f_c, axes=axes))
 
 
 def _correlate(in1, in2, mode="full", axis=0):

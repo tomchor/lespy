@@ -120,7 +120,12 @@ def Hoennikker(simulation, alpha=alpha_w, g=g, rho=rho_w, cp=cp_w):
 
 
 def droppletTimeScale(diam, rho_d=859.870, mu=1.08e-3):
-    return (rho_d + rho_w/2.)*diam**2./(18.*mu)
+    """diam should be in meters"""
+    import numpy as np
+    wr = termVelocity(diam)
+    Re = rho_d*wr*diam/mu
+    TS = (rho_d + rho_w/2.)*diam**2./(18.*mu)
+    return np.piecewise(Re, [Re<0.2, 0.2<=Re<750, Re>750], [lambda t: TS, lambda t: TS/(1+0.15*(Re**0.687)), np.nan])
 
 
 def get_zi(wT, xy_axis=(1,2), simulation=None):

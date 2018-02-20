@@ -173,6 +173,7 @@ def np2vtr(arrays, outname):
     """
     from .pyevtk.hl import gridToVTK
     import numpy as np
+    import xarray as xr
 
     coords = list(arrays.values())[0].coords
     x = coords['x'].values
@@ -194,9 +195,11 @@ def np2vtr(arrays, outname):
         for tstep in timestamps:
             tstep = int(tstep)
             print('Writing t=',tstep,'to vtr')
-            #for key, val in arrays.items():
-            #    points.update({ key:val.sel(time=tstep).values })
-            gridToVTK(outname.format(tstep), x,y,z, pointData = points)
+            for key, val in arrays.items():
+                #val = val.sel(time=tstep)
+                #out = xr.DataArray(np.ascontiguousarray(val.values), coords=val.coords, dims=val.dims)
+                points.update({ key : np.ascontiguousarray(val.sel(time=tstep).values) })
+                gridToVTK(outname.format(tstep), x,y,z, pointData = points)
 
     return
 

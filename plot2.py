@@ -214,90 +214,9 @@ def animate(results, outname=None, which='xy', simulation=None, title='', grid=T
 
 
 
-def pcon_2D_animation(results, outname=None, which='xy', simulation=None, title='',
-        clim=[], logscale=True, axes=[], levels=None, nbins=6,
-        timelist=None, aspect='equal', **kwargs):
-    """
-    Prints 2D animations from binary data for oil concentrations
-
-    Each frame is done with the plane() function, and changes to that can be
-    passed to plane() with the plane_kw keyword
-
-    Parameters
-    ----------
-    resuts: np.array
-        3D array where first axis is time
-    outname: string
-        path for animation to be saved. If None, animation is returned.
-    which: string
-        either xz or xy. If it's anything else no label will be put and x and y axis will be nodes.
-    simulation: lespy.Simulation
-        simulation from where to retrieve information
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import matplotlib.animation as anim
-    from .utils import get_ticks
-
-    fig = plt.figure()
-    snaps = []
-    sim = simulation
-
-    try:
-        results = results.values
-    except:
-        pass
-
-    #--------
-    # This sets the labels for each frame
-    if type(timelist)==type(None):
-        timelist = range(0, results.shape[0])
-    #--------
-
-    #-------
-    # To take care of slightly negative or zero concentrations for plotting purposes
-    results[ results==0 ] += 1.e-20
-    results = abs(results)
-    #-------
-
-    #------------
-    # Sets levels and ticks to use on the contour
-    ticklabels, formatting, levels_con = get_ticks(results, levels=levels, logscale=logscale, clim=clim, nbins=nbins)
-    #------------
-
-    for i, planecut in zip(timelist, results):
-        print(i)
-        aux = plane(planecut, which=which, axes=axes, outname=None, levels=levels_con, 
-                simulation=simulation, logscale=logscale, set_cbar=False, **kwargs)
-        timelabel = aux.ax.annotate(i, (.8,.05), annotation_clip=False, xycoords='figure fraction')
-        aux.collections.append(timelabel)
-        aux.grid(grid)
-        snaps.append(aux.collections)
-    fig.axes[0].set_title(title)
-
-    #--------
-    # Doesnt waste space on the plot and sets aspect ratio to be equal
-    plt.gca().set_aspect(aspect)
-    plt.tight_layout()
-    #--------
-
-    #--------
-    # Animate and put the colorbar
-    animated = anim.ArtistAnimation(fig, snaps, interval=50, blit=True)
-    cbar = plt.colorbar(aux, ticks = levels_con, extend=None)
-    cbar.ax.set_yticklabels(formatting(ticklabels))
-    #--------
-
-    if outname:
-        animated.save(outname, bitrate=-1, dpi=150, writer='ffmpeg')
-    else:
-        return animated
-
-
-
-def plane(plane, outname=None, which='xy', simulation=None, 
+def plane(plane, outname=None, simulation=None, 
         axes=[], levels=None, logscale=True, clim=[], title='',
-        set_cbar=True, cmap=None, xlim=[], ylim=[], aspect='equal', nbins=6, clabel=None):
+        set_cbar=True, cmap=None, aspect='equal', clabel=None):
     """
     Prints 2D animations from binary data for oil concentrations
     """
@@ -315,24 +234,6 @@ def plane(plane, outname=None, which='xy', simulation=None,
     #------------
     # Sets levels and ticks to use on the contour
     ticklabels, formatting, levels_con = get_ticks(plane, levels=levels, logscale=logscale, clim=clim, nbins=nbins)
-    #------------
-
-    #------------
-    # Sets x y grid
-    if axes:
-        ax1, ax2 = axes
-    else:
-        if simulation:
-            if which == 'xy':
-                ax1 = np.arange(0, plane.shape[0]*sim.domain.dx, sim.domain.dx)
-                ax2 = np.arange(0, plane.shape[1]*sim.domain.dy, sim.domain.dy)
-            elif which == 'xz':
-                ax1 = np.arange(0, plane.shape[0]*sim.domain.dx, sim.domain.dx)
-                ax2 = -np.arange(0, plane.shape[1]*sim.domain.dz, sim.domain.dz)
-        else:
-            ax1 = np.arange(0, plane.shape[0])
-            ax2 = np.arange(0, plane.shape[1])
-    X2, X1 = np.meshgrid(ax2, ax1)
     #------------
 
     #----------
