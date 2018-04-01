@@ -32,6 +32,106 @@ class Simulation(object):
         if type(self.droplet_sizes)!=np.ndarray:
             self.droplet_sizes=np.array([self.droplet_sizes])
 
+        try:
+            self.s_flag=self.theta_flag
+        except AttributeError:
+            self.theta_flag=self.s_flag
+
+
+    def check(self, full=True):
+        """
+        Check important characteristics of the simulation
+        """
+        CFL_x=self.u_scale*self.dt/self.domain.dx
+        print('CFL (u_scale*dt/dx)          : {:.2e}'.format(CFL_x))
+        print('dx/dz                        : {:2.1f}\t\t{}'.format(self.domain.dx/self.domain.dz,'-- Should be < 5 in practice'))
+        print('lx/z_inv                     : {:2.1f}\t\t{}'.format(self.domain.lx/self.inversion_depth,'-- Should be > 6. At *least* 4.'))
+        divs = []
+        for i in range(2,140):
+            if self.domain.nz%i == 0:
+                divs.append(i)
+        print('Nz = {:03d} and is divisible by : {}'.format(self.domain.nz, divs))
+        if full:
+            print('Coriolis timescale           : {:1.1e} timesteps'.format(int(1./self.freq_coriolis/self.dt)))
+
+    def get_w_star(self):
+        """Calculates the convective scale"""
+        from .. import physics as phys
+        return phys.w_star(self)
+
+
+    def DataArray(self, array, **kwargs):
+        """
+        Creates a DataArray specifically for this simulation.
+        
+        Currently does not work with xarray yet because of different domain.
+        """
+        #import xarray as xr
+        from ..utils import get_DA
+        da = get_DA(array, simulation=self, **kwargs)
+        return da
+
+    def to_hours(self, timesteps, to_label=False):
+        """Transforms from simulation timesteps to hours"""
+        out = timesteps*self.dt/(60*60)
+        if to_label:
+            out = [ '{:.2f} hours'.format(el) for el in out ]
+        return out
+
+    def __str__(self):
+        buff='Simulation Parameters\n'+ '-'*21
+        buff += '\nEndless    : {}\n'.format(self.flag_endless)
+        buff += 'dt:        : {} s\n'.format(self.dt)
+        buff+= self.domain.__str__()
+        return buff
+    def __repr__(self):
+        aux = """<lespy.Simulation object>. Domain: {}""".format(self.domain.__repr__())
+        return aux
+
+
+
+
+
+
+
+class Simulation_old(object):
+    """class for simulation parameters"""
+    def __init__(self, from_file=None, domain=None, timelength=None, u_scale=None, inversion_depth=None, **kwargs):
+        import numpy as np
+        from .. import physics
+        #------------
+        # Start simulation from param.nml file
+        if from_file!=None:
+            if isinstance(from_file, str):
+                aux = sim_from_file(from_file)
+                self.__dict__.update(vars(aux))
+                return
+            else:
+                raise ValueError('fromfile keyword should be path to param.nml')
+        #------------
+
+        #------------
+        # Start simulation from call arguments
+        else:
+            self.domain = domain
+            self.timelength = timelength
+            self.u_scale = u_scale
+            self.inversion_depth = inversion_depth
+            self.inv_depth = inversion_depth
+            self.__dict__.update(kwargs)
+        #------------
+
+        self.w_star = self.get_w_star()
+        self.vel_settling=np.array(self.vel_settling)
+        self.droplet_sizes=physics.get_dropletSize(self.vel_settling, nominal=True, nowarning=True).astype(int)
+        if type(self.droplet_sizes)!=np.ndarray:
+            self.droplet_sizes=np.array([self.droplet_sizes])
+
+        try:
+            self.s_flag=self.theta_flag
+        except AttributeError:
+            self.theta_flag=self.s_flag
+
 
     def check(self, full=True):
         """

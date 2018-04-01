@@ -2,7 +2,7 @@ def paramParser(nmlpath):
     """Function that parses parameters from param.nml namelist files
     """
     #from .nml import read
-    from .f90nml import read
+    from f90nml import read
     from os.path import isfile, exists, join, abspath, basename, dirname
     from os import remove
 
@@ -50,29 +50,38 @@ def nameParser(fname):
     """
     from os import path
     fname = path.basename(fname)
+    import re
 
     if 'con_tt' in fname:
-        import re
         numbers = re.split('[a-z. +_]',fname)
         ndtime, pcon_n, row, col = [ int(el) for el in numbers if el is not '' ]
         return int(ndtime), pcon_n, row, col
-
-    if 'vel_sc' in fname:
-        start='vel_sc'
-
-    elif 'vel_t' in fname:
-        start='vel_t'
-
-    elif 'temp_t' in fname:
-        start='temp_t'
-
-    elif 'div_z0_t' in fname:
-        start='div_z0_t'
     else:
-        return None
-
-    ndtime = fname.strip(start).strip('.out')
+        ndtime = [ el for el in re.split('[a-z. +_]',fname) if el!= '' ][0]
     return int(ndtime)
+
+#    if 'vel_sc' in fname:
+#        start='vel_sc'
+#
+#    elif 'vel_t' in fname:
+#        start='vel_t'
+#
+#    elif 'temp_t' in fname:
+#        start='temp_t'
+#
+#    elif 'div_z0_t' in fname:
+#        start='div_z0_t'
+#    elif 'uvw_jt' in fname:
+#        start='uvw_jt'
+#    elif 'div_z0_t' in fname:
+#        start='div_z0_t'
+#    elif 'div_z0_t' in fname:
+#        start='div_z0_t'
+#    else:
+#        return None
+#
+#    ndtime = fname.strip(start).strip('.out')
+#    return int(ndtime)
 
 
 def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
@@ -204,6 +213,41 @@ def np2vtr(arrays, outname):
     return
 
 
+def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
+    """
+    Gets a dataarray from pcons
+    
+    pcons: list or np.array
+        If it's a list the domains can be different
+    with_time: list, array
+        list that will serve as the time index
+    """
+    import xarray as xr
+    sim = simulation
+
+    if 'time' in dims:
+        if time:
+            coords=dict(time=time)
+        else:
+            print('Provide time kwarg')
+    else:
+        coords=dict()
+
+    for dim in dims:
+        if dim=='time': continue
+        if dim.startswith('z'):
+            coords['z'] = sim.domain.__dict__[dim]
+        elif dim=='size':
+            coords['size'] = sim.droplet_sizes
+        else:
+            coords[dim] = sim.domain.__dict__[dim]
+    dims = [ 'z' if dim.startswith('z') else dim for dim in dims ]
+
+    return xr.DataArray(array, dims=dims, coords=coords, **kwargs)
+    #----------
+
+
+
 
 def get_dataarray(pcons, simulation=None, with_time=False):
     """
@@ -271,7 +315,10 @@ def get_dataarray(pcons, simulation=None, with_time=False):
         #-------
         if (len(pcon.shape)-time) == 5:
             raise ValueError("Too many dimensions in array")
-        return sim.DataArray(pcons, coords=coords)
+        try:
+            return sim.DataArray(pcons, coords=coords, dims=['x', 'y', 'z'])
+        except:
+            return sim.DataArray(pcons, coords=coords, dims=['time', 'x', 'y', 'z'])
     #----------
 
 

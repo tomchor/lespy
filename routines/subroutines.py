@@ -50,33 +50,57 @@ def postProcess2D(model_outputdir, t_ini=100000, t_end=None, simulation=None, re
     return outdat
 
 
-def _readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=None):
+
+def readBinary(fname, simulation=None, domain=None, n_con=None, trim=True, as_DA=True):
     """
     Reads a binary file according to the simulation or domain object passed
 
-    Passing a simulation might not be trustworthy because it might refer to different files
+    Parameters
+    ----------
+    fname: string
+        path of the binary file you want to open
+    simulation: lespy.Simulation
+        simulation that contains important information to assemble the file. Mostly
+        it's used to get number of points, if temperature is in the file or not and n_con.
+    domain: lespy.Domain
+        depending on what you're doing, just a domain file suffices
+    read_pcon: bool
+        if the file is vel_sc, try to read pcon after it finishes reading u,v,w,T.
+        It just gives a warning if it fails
+    n_con: int
+        number of pcon sizes to read. Overwrites n_con from simulation
+    only_pcon: bool
+        if file is vel_sc, skip u,v,w,T and read just pcon. Makes reading pcon a lot faster.
     """
     from os import path
     from .. import Simulation
     import numpy as np
-    from struct import unpack, error
 
     if isinstance(simulation, str):
         from ..simClass import Simulation as Sim
         simulation = Sim(simulation)
 
     #---------
-    # Dealing with pre-requesites. Using only domain is more general
-    if (simulation==None) and (domain==None):
-        domain = Simulation(path.dirname(path.abspath(fname))).domain
-        sim=None
-    elif (simulation==None) and (domain!=None):
-        sim=None
-    elif (simulation!=None) and (domain==None):
+    # Trying to be general
+    if simulation!=None:
         sim = simulation
         domain = sim.domain
     else:
-        sim = simulation
+        if domain==None:
+            sim = Simulation(path.dirname(path.abspath(fname)))
+            domain = sim.domain
+        else:
+            sim = Simulation(domain=domain, n_con=n_con)
+    #---------
+
+    #---------
+    # Useful for later. Might as well do it just once here
+    u_nd = domain.nx*domain.ny*domain.nz_tot
+    u_nd2 = domain.ld*domain.ny
+#    if read_pcon or only_pcon:
+#        if n_con==None:
+#            n_con = sim.n_con
+#        p_nd = u_nd*n_con
     #---------
 
     #--------------
@@ -85,25 +109,54 @@ def _readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=No
     bfile.read(4)
     #--------------
     
-    if path.basename(fname).startswith('con_tt'):
-        p_nd = domain.ld*domain.ny*domain.nz_tot*sim.n_con
-        pcon = unpack('d'*p_nd, bfile.read(8*p_nd))
-        pcon = np.array(pcon).reshape((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
+    #---------
+    # Straightforward
+    if path.basename(fname).startswith('pcon_jt'):
+        pcon = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        pcon *= sim.pcon_scale
+        if as_DA:
+            pcon=sim.DataArray(pcon, dims=['x', 'y', 'z'])
         return pcon
-    
-    elif path.basename(fname).startswith('vel_sc'):
-        u_nd = domain.ld*domain.ny*domain.nz_tot
-        u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        return u,v,w, T
-        #--------
-
-    return
     #---------
     
+    #---------
+    # Straightforward
+    elif path.basename(fname).startswith('theta_jt'):
+        T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        T = 2.*sim.t_init - T*sim.t_scale
+        if as_DA:
+            T=sim.DataArray(T, dims=['x', 'y', 'z'])
+        return T
+    #---------
 
+    #---------
+    # Straightforward
+    elif path.basename(fname).startswith('uvw_jt'):
+        u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        u = u*sim.u_scale
+        v = v*sim.u_scale
+        w =-w*sim.u_scale
+        if as_DA:
+            u=sim.DataArray(u, dims=['x', 'y', 'z_u'])
+            v=sim.DataArray(v, dims=['x', 'y', 'z_u'])
+            w=sim.DataArray(w, dims=['x', 'y', 'z_w'])
+        return u,v,w
+    #---------
+
+    #---------
+    # Spectra
+    elif path.basename(fname).startswith('spec_uvwT'):
+        ndz=4*(domain.nx//2)*(domain.nz_tot-1)
+        u,v,w,T = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((4,domain.nx//2, domain.nz_tot-1), order='F')
+        print('Not normalized')
+        return u,v,w,T
+    #---------
+
+    return
+
+    
 def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, only_pcon=False, 
         trim=True, as_dataarray=False):
     """
