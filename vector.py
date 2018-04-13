@@ -1,3 +1,4 @@
+import numpy as _np
 
 def vorticity(u,v,w, simulation=None, domain=None, axes=[1,2,3], as_dataarray=True):
     """Calculates the 3D relative vorticity"""
@@ -32,6 +33,55 @@ def div_2d(u, v, axes=(0,1)):
     from . import numerical as nm
     div = nm.diff_fft(u, axis=axes[0]) + nm.diff_fft(v, axis=axes[1])
     return div
+
+def velgrad_tensor(u_vec, simulation=None, trim=True):
+    """
+    u_vec is a list with [u, v, w]
+    u, v, and w should be xarrays
+    """
+    from . import numerical
+    sim=simulation
+    u_st = ['u', 'v', 'w']
+    dims = ['x', 'y', 'z']
+
+    R=_np.full((3,3), _np.nan, dtype=_np.object)
+    for i, (vec, vec_s) in enumerate(zip(u_vec, u_st)):
+        for j, dim in enumerate(dims[:2]):
+            print('R[{},{}] = {}_{}'.format(i, j, vec_s, dim))
+            R[i,j] = numerical.diff_fft_xr(vec, dim=dim)
+        print('R[{},2] = {}_z'.format(i, vec_s))
+        R[i,2] = -vec.diff(dim='z')/sim.domain.dz
+        R[i,2].coords['z'] = R[i,2].coords['z'] + sim.domain.dz/2
+
+    if trim:
+        for i in range(2):
+            for j in range(2):
+                R[i,j] = R[i,j].isel(z=slice(None,-1))
+
+    return R
+
+
+
+
+def get_QD(uv, verbose=True):
+    """
+    uv is a list of [u, v]
+    u, v are xarray.DataArrays
+    """
+    from . import numerical
+    u, v, = uv
+    if verbose: print("Start differentiating ...")
+    dxu = numerical.diff_fft_xr(u, dim="x")
+    dyu = numerical.diff_fft_xr(u, dim="y")
+    dxv = numerical.diff_fft_xr(v, dim="x")
+    dyv = numerical.diff_fft_xr(v, dim="y")
+    if verbose: print('end differentiating')
+
+    hdiv = dxu + dyv
+    asym = dxu**2 - 2*dxu*dyv + 4*dxv*dyu + dyv**2
+    return asym, hdiv
+
+
 
 
 def _cluster_coeff(cons, simulation=None, axes=(0,1), total=None):
