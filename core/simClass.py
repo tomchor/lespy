@@ -1,7 +1,7 @@
 
 class Simulation(object):
     """class for simulation parameters"""
-    def __init__(self, from_file=None, domain=None, timelength=None, u_scale=None, inversion_depth=None, **kwargs):
+    def __init__(self, from_file=None, domain=None, timelength=None, inversion_depth=None, **kwargs):
         import numpy as np
         from .. import physics
         #------------
@@ -20,11 +20,15 @@ class Simulation(object):
         else:
             self.domain = domain
             self.timelength = timelength
-            self.u_scale = u_scale
             self.inversion_depth = inversion_depth
             self.inv_depth = inversion_depth
             self.__dict__.update(kwargs)
         #------------
+
+        try:
+            self.u_scale*=1
+        except:
+            self.u_scale=self.u_star
 
         self.w_star = self.get_w_star()
         self.vel_settling=np.array(self.vel_settling)
@@ -294,7 +298,6 @@ def sim_from_file(namelist, tlength_from_ke=False, check_ke_file=None):
             check_ke=kefile,
             timelength=tlength,
             avglength=params['p_count'],
-            u_scale=params['u_star'],
             inversion_depth=params['z_i']*params['prop_mixed'],
             T_scale=params['t_scale'],
             **params)

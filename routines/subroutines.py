@@ -51,7 +51,7 @@ def postProcess2D(model_outputdir, t_ini=100000, t_end=None, simulation=None, re
 
 
 
-def readBinary(fname, simulation=None, domain=None, n_con=None, trim=True, as_DA=True):
+def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -97,21 +97,32 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, trim=True, as_DA
     # Useful for later. Might as well do it just once here
     u_nd = domain.nx*domain.ny*domain.nz_tot
     u_nd2 = domain.ld*domain.ny
-#    if read_pcon or only_pcon:
-#        if n_con==None:
-#            n_con = sim.n_con
-#        p_nd = u_nd*n_con
     #---------
+
+    #---------
+    bfile = open(fname, 'rb')
+    #---------
+
+    if path.basename(fname).startswith('uv0_jt'):
+        u0, v0 = np.fromfile(bfile, dtype=np.float64).reshape(2,-1, order='C')
+        u0 = u0.reshape((domain.nx, domain.ny), order='F')
+        v0 = v0.reshape((domain.nx, domain.ny), order='F')
+        if as_DA:
+            u0=sim.DataArray(u0*sim.u_scale, dims=['x', 'y'])
+            v0=sim.DataArray(v0*sim.u_scale, dims=['x', 'y'])
+        return u0, v0
 
     #--------------
     # For fortran unformatted output you have to skip first 4 bytes
-    bfile = open(fname, 'rb')
     bfile.read(4)
     #--------------
     
     #---------
     # Straightforward
     if path.basename(fname).startswith('pcon_jt'):
+        if n_con==None:
+            n_con = sim.n_con
+        p_nd = u_nd*n_con
         pcon = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
         pcon *= sim.pcon_scale
         if as_DA:

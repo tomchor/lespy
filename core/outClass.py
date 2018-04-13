@@ -17,7 +17,7 @@ class Output(object):
 
         #----------
         # We use pandas to organize all the files (very handy)
-        opfiles = pd.DataFrame(columns=['uvw_jt', 'theta_jt', 'pcon_jt', 'div_z0_t'])
+        opfiles = pd.DataFrame(columns=['uvw_jt', 'theta_jt', 'pcon_jt', 'uv0_jt'])
         #----------
 
         #----------
@@ -52,12 +52,12 @@ class Output(object):
 
 
         #----------
-        # list div_z0_t files
-        div_z0_t = sorted(glob(path.join(oppath, 'div_z0_t*.out')))
-        if div_z0_t: print('div_z0_t', end=' ')
-        for fname in div_z0_t:
+        # list uv0_jt files
+        uv0_jt = sorted(glob(path.join(oppath, 'uv0_jt*bin')))
+        if uv0_jt: print('uv0_jt', end=' ')
+        for fname in uv0_jt:
             ndtime = utils.nameParser(fname)
-            opfiles.loc[ndtime, 'div_z0_t'] = fname
+            opfiles.loc[ndtime, 'uv0_jt'] = fname
         #----------
 
 
@@ -72,16 +72,6 @@ class Output(object):
             ndtime, ncon, row, col = utils.nameParser(fname)
             opfiles.loc[ndtime, 'pcon_jt'] = [fname]
         #----------
-
-        #---------
-        # Separate each list entry of pcon_jt into list of lists (one for each n_con)
-#        if separate_ncon:
-#            nconlist = [ 's{:03d}'.format(el) for el in n_cons ]
-#            self.n_cons = nconlist
-#            for i,entries in opfiles.loc[:, 'pcon_jt'].dropna().iteritems():
-#                flist = [ [ entry for entry in entries if ncon in entry ] for ncon in nconlist ]
-#                opfiles.loc[i, 'pcon_jt'] = flist
-        #---------
 
         self.binaries = opfiles.sort_index()
         print('... done reading and organizing.')
@@ -290,7 +280,7 @@ class Output(object):
 
 
 
-    def compose_divs(self, times=None, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True):
+    def compose_uv0(self, times=None, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True):
         """
         Puts together everything in time, but can't compose endless patches. Output
         matrices indexes are
@@ -317,7 +307,7 @@ class Output(object):
 
         #--------------
         # Only these types of file we deal with here
-        labels = ['div_z0_t']
+        labels = ['uv0_jt']
         #--------------
 
         #--------------
@@ -333,15 +323,9 @@ class Output(object):
 
         #---------
         # Definition of output with time, x, y[ and z]
-        print('Creating 4 arrays of {}, {}, {}...'.format(len(bins), sim.domain.ld, sim.ny), end='')
-        if trim:
-            du = np.full((len(bins), sim.domain.nx, sim.ny), np.nan)
-            dv = np.full((len(bins), sim.domain.nx, sim.ny), np.nan)
-            dw = np.full((len(bins), sim.domain.nx, sim.ny), np.nan)
-        else:
-            du = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-            dv = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
-            dw = np.full((len(bins), sim.domain.ld, sim.ny), np.nan)
+        print('Creating 2 arrays of {}, {}, {}...'.format(len(bins), sim.domain.nx, sim.ny), end='')
+        u0 = np.full((len(bins), sim.nx, sim.ny), np.nan)
+        v0 = np.full((len(bins), sim.nx, sim.ny), np.nan)
         print(' done.')
         #---------
 
@@ -356,29 +340,28 @@ class Output(object):
             for col in iSeries:
                 if not isinstance(col, str): continue
                 print(col)
-                aux = routines.readBinary2(col, simulation=sim, read_pcon=False, trim=trim)
-                ui,vi,wi = aux
-                du[i] = ui
-                dv[i] = vi
-                dw[i] = wi
+                aux = routines.readBinary(col, simulation=sim)
+                ui,vi = aux
+                u0[i] = ui
+                v0[i] = vi
             #---------
         #---------
 
         #---------
         # Trims the extra node(s) at the end of the x coordinate
         if trim:
-            du = du[:, :sim.nx]
-            dv = dv[:, :sim.nx]
-            dw = dw[:, :sim.nx]
+            u0 = u0[:, :sim.nx]
+            v0 = v0[:, :sim.nx]
         #---------
 
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
-            du, dv, dw = utils.get_dataarray([du, dv, dw], simulation=sim, with_time=bins.index.tolist())
+            u0 = utils.get_DA(u0, simulation=sim, dims=['time', 'x', 'y'], time=bins.index.tolist())
+            v0 = utils.get_DA(v0, simulation=sim, dims=['time', 'x', 'y'], time=bins.index.tolist())
         #---------
 
-        return du, dv, dw
+        return u0, v0
 
 
     def _compose_par(self, nprocs=10, t_ini=None, t_end=None, **kwargs):

@@ -21,6 +21,34 @@ def integrate(arr, axis=0, dx=1., chunks=1):
         return integ
 
 
+def diff_fft_xr(da, n=1, dim=None, shift=False, reshape=False, **kwargs):
+    """
+    Calculate derivative of a DataArray using fft
+
+    Notes:
+    - Changing the zero frequency doesn't change the output as far
+        as the derivative goes.
+    - Normalizing the fourier coefficients by N, yields derivatives
+        that are 1/N the expected value.
+    - The nyquist frequency is generally pretty small so setting it to
+        zero generally doesn't do anything.
+    """
+    import numpy as np
+    import xrft
+    import xarray as xr
+
+    wave = xrft.dft(da, dim=dim, shift=shift, **kwargs)
+    freq = wave.coords['freq_'+dim]
+
+    if reshape: # This reshape is generally not necessary
+        newshape = tuple( 1 if ax!=da.dims.index(dim) else -1 for ax in range(len(da.shape)) )
+        freq = freq.values.reshape(newshape)
+
+    ikF = (pow(1.j*2.*np.pi, n)*wave*freq)
+    return xr.DataArray(np.fft.ifft(ikF, axis=da.dims.index(dim)).real, coords=da.coords, dims=da.dims)
+
+
+
 def diff_fft(array, n=1, axis=0, dx=1., zero_nyquist=False):
     """
     Notes:
