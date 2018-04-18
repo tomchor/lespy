@@ -21,25 +21,76 @@ def integrate(arr, axis=0, dx=1., chunks=1):
         return integ
 
 
-def diff_fft(array, n=1, axis=0, dx=1.):
+def diff_fft_xr(da, n=1, dim=None, shift=False, reshape=False, **kwargs):
     """
+    Calculate derivative of a DataArray using fft
+
+    Notes:
+    - Changing the zero frequency doesn't change the output as far
+        as the derivative goes.
+    - Normalizing the fourier coefficients by N, yields derivatives
+        that are 1/N the expected value.
+    - The nyquist frequency is generally pretty small so setting it to
+        zero generally doesn't do anything.
+    """
+    import numpy as np
+    import xrft
+    import xarray as xr
+
+    wave = xrft.dft(da, dim=dim, shift=shift, **kwargs)
+    freq = wave.coords['freq_'+dim]
+
+    if reshape: # This reshape is generally not necessary
+        newshape = tuple( 1 if ax!=da.dims.index(dim) else -1 for ax in range(len(da.shape)) )
+        freq = freq.values.reshape(newshape)
+
+    ikF = (pow(1.j*2.*np.pi, n)*wave*freq)
+    return xr.DataArray(np.fft.ifft(ikF, axis=da.dims.index(dim)).real, coords=da.coords, dims=da.dims)
+
+
+
+def diff_fft(array, n=1, axis=0, dx=1., zero_nyquist=False):
+    """
+    Notes:
+    - Changing the zero frequency doesn't change the output as far
+        as the derivative goes.
+    - Normalizing the fourier coefficients by N, yields derivatives
+        that are 1/N the expected value.
+    - The nyquist frequency is generally pretty small so setting it to
+        zero generally doesn't do anything.
     """
     import numpy as np
     wave = np.fft.rfft(array, axis=axis)
     freq = np.fft.rfftfreq(array.shape[axis], d=dx)
     newshape = tuple( 1 if ax!=axis else -1 for ax in range(len(array.shape)) )
     freq = pow(1.j*2.*np.pi, n)*freq.reshape(newshape)
-    return np.fft.irfft(wave*freq, axis=axis)
+
+#    if zero_nyquist:
+#        wave[-1]=0
+    ikF = (wave*freq)
+    return np.fft.irfft(ikF, axis=axis)
 
 
+def ax_replace(arr, indices, val, axis):
+    s = [slice(None)]*arr.ndim
+    s[axis] = indices
+    arr[s] = val
 
 
-
-
+def recover_cont(F, axes=(0,1), coeff=1):
+    import numpy as np
+    f_c = np.fft.fft2(F, axes=axes)
+    for ax in axes:
+        nx=F.shape[ax]
+        f_c.swapaxes(0, ax)[nx//2] = 0
+    #f_c[nx//2]=0.
+    #f_c[:,ny//2]=0.
+    return np.real(np.fft.ifft2(coeff*f_c, axes=axes))
 
 
 def _correlate(in1, in2, mode="full", axis=0):
-    """Convolve two N-dimensional arrays using FFT.
+    """
+    Convolve two N-dimensional arrays using FFT.
     Convolve `in1` and `in2` using the fast Fourier transform method, with
     the output size determined by the `mode` argument.
     This is generally much faster than `convolve` for large arrays (n > ~500),

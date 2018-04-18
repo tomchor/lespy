@@ -1,3 +1,20 @@
+import numpy as _np
+
+def JPDF(*args, **kwargs):
+    """
+    wrapper around np.histogram2d to make it easier
+    to make the plots
+    """
+    import xarray as xr
+    jpdf, xedges, yedges = _np.histogram2d(*args, **kwargs)
+    xcenters=(xedges[1:]+xedges[:-1])/2
+    ycenters=(yedges[1:]+yedges[:-1])/2
+    x_mesh, y_mesh = _np.meshgrid(xcenters, ycenters, indexing='ij')
+    #y_mesh, x_mesh = _np.meshgrid(ycenters, xcenters, indexing='xy')
+    return jpdf, x_mesh, y_mesh,
+
+
+
 def radial_dist(data, cond0=lambda x, y: x<=np.percentile(y,5), 
         condr=lambda x, y: x>=np.percentile(y,95), simulation=None, bins=None):
     """

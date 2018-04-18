@@ -6,6 +6,383 @@ class Output(object):
     """
     def __init__(self, oppath, apply_basename=False, n_cons=[1], separate_ncon=True, verbose=False):
         """
+        Lists every output file from a simulation (so far only uvw_jt, theta_jt and pcon_jt)
+
+        oppath can be either the directory of the output, or one of the outuput binary files
+        """
+        from os import path
+        from glob import glob
+        import pandas as pd
+        from .. import utils
+
+        #----------
+        # We use pandas to organize all the files (very handy)
+        opfiles = pd.DataFrame(columns=['uvw_jt', 'theta_jt', 'pcon_jt', 'uv0_jt'])
+        #----------
+
+        #----------
+        # If we get a file, we search in the directory of that file
+        if path.isfile(oppath):
+            oppath = path.dirname(oppath)
+        elif path.isdir(oppath):
+            pass
+        else:
+            print('No wildcards')
+            raise Exception
+        #----------
+
+        print('Starting to read output as ', end='')
+        #----------
+        # List uvw_jt files
+        uvw_jt = sorted(glob(path.join(oppath, 'uvw_jt*.bin')))
+        if uvw_jt: print('uvw_jt', end=' ')
+        for fname in uvw_jt:
+            ndtime = utils.nameParser(fname)
+            opfiles.loc[ndtime, 'uvw_jt'] = fname
+        #----------
+
+        #----------
+        # list theta_jt files
+        theta_jt = sorted(glob(path.join(oppath, 'theta_jt*.bin')))
+        if theta_jt: print('theta_jt', end=' ')
+        for fname in theta_jt:
+            ndtime = utils.nameParser(fname)
+            opfiles.loc[ndtime, 'theta_jt'] = fname
+        #----------
+
+
+        #----------
+        # list uv0_jt files
+        uv0_jt = sorted(glob(path.join(oppath, 'uv0_jt*bin')))
+        if uv0_jt: print('uv0_jt', end=' ')
+        for fname in uv0_jt:
+            ndtime = utils.nameParser(fname)
+            opfiles.loc[ndtime, 'uv0_jt'] = fname
+        #----------
+
+
+        #----------
+        # list pcon_jt files (each entry is a list, since there can be lots for each timestep
+        pcon_jt = sorted(glob(path.join(oppath, 'pcon_jt*.bin')))
+        if pcon_jt: print('pcon_jt', end=' ')
+        if apply_basename:
+            pcon_jt = map(path.basename, pcon_jt)
+
+        for fname in pcon_jt:
+            ndtime, ncon, row, col = utils.nameParser(fname)
+            opfiles.loc[ndtime, 'pcon_jt'] = [fname]
+        #----------
+
+        self.binaries = opfiles.sort_index()
+        print('... done reading and organizing.')
+        return
+
+
+    def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, trim=True):
+        """
+        Puts together particle outputs in space (for ENDLESS patches) and in time
+        creating one big 5-dimensional numpy array in return, with the axes being
+        time, x, y, z, n_con
+        where n_con is the number of the particle
+
+        t_ini, t_end: int
+            initial and final time steps
+        simulation: lespy.Simulation object
+            simulation to consider when processing the results
+        as_dataarray: bool
+            if true, return xarray.DataArray. If false, return np.ndarray object
+        apply_to_z: bool
+            If true, z_function is applied to each instantaneous 3D patch before
+            merging into final array and final array has shape (time, x, y[, n_con]).
+            If false, full 3D patch is merged and final array has shape (time,x,y,z[,n_con]).
+            Currently only tested for endless (pcon_jt outputs).
+        z_function: function
+            Function (should be manually set to apply on z axis) to be applied on z axis
+            if apply_to_z in True.
+        dtype: numpy.type, python.type
+            type to initialize the array with.
+        """
+        from .. import utils, routines
+        import numpy as np
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError("You need to provide a simulation object here")
+
+        #--------------
+        # Only these types of file have pcon output (maybe con_t also)
+        labels = ['pcon_jt', 'uvw_jt']
+        #--------------
+
+        #--------------
+        # Adjust intervals
+        if type(times)!=type(None):
+            cons = self.binaries.loc[times, labels].dropna(axis=1, how='all')
+        else:
+            if t_end is None:
+                cons = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+            else:
+                cons = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+        #--------------
+
+        #--------------
+        # Making sure we have the right result
+        if len(cons.columns) not in [1,2]:
+            raise ValueError('Columns are: {} and there should be only pcon_jt and/or uvw_jt left'.format(cons.columns.tolist()))
+        #--------------
+
+        #--------------
+        # Case with endless (with endless, all pcon should be in pcon_jt)
+        elif 'pcon_jt' in cons.columns.tolist():
+            raise NotImplementedError('Use compose_edls() function')
+        #---------
+
+        #---------
+        # In this case there's no endless!
+        elif cons.columns.tolist() == ['uvw_jt']:
+            cons = cons.uvw_jt
+
+            #---------
+            # For too-large sizes, it's better to integrate over z patch-by-patch
+            if apply_to_z:
+                print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.n_con))
+                pcons = np.full((len(cons), sim.nx, sim.ny, sim.n_con), np.nan, dtype=dtype)
+            else:
+                print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con))
+                pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan, dtype=dtype)
+            #---------
+
+            for i, fname in enumerate(cons):
+                print(i, cons.index[i], fname)
+                con = routines.readBinary2(fname, simulation=sim, n_con=sim.n_con, only_pcon=True)
+
+                #--------
+                # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge
+                if apply_to_z:
+                    pcons[i,:,:,:] = z_function(con[:sim.nx,:,:,:])
+                else:
+                    pcons[i,:,:,:,:] = con[:sim.nx,:,:,:]
+                #--------
+        #---------
+
+        else:
+            print(cons.columns.tolist())
+
+        if as_dataarray:
+            output = utils.get_dataarray(pcons, simulation=sim, with_time=cons.index.tolist())
+            if type(output)==list:
+                return output[0]
+            else: return output
+        else:
+            if type(pcons)==list:
+                return pcons[0]
+            else:
+                return pcons
+
+
+    def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
+        """
+        Puts together everything in time
+        Output array indexes are
+        time, x, y, z
+
+        Parameters
+        ----------
+        self: lp.Output
+        times: slice
+            slice with which times to read.
+        simulation: lp.Simulation
+            to be used as base
+        trim: bool
+            whether to trim two extra points in x axis
+        """
+        from .. import utils, routines
+        import numpy as np
+        import pandas as pd
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError("You need to provide a simulation object here")
+
+        #--------------
+        # Only these types of file we deal with here
+        label = 'uvw_jt'
+        Nx=sim.domain.nx
+        #--------------
+
+        #--------------
+        # Adjust intervals
+        if type(times)!=type(None):
+            bins = self.binaries.loc[times, label].dropna(how='all')
+        else:
+            if t_end is None:
+                bins = self.binaries.loc[t_ini:, label].dropna(how='all')
+            else:
+                bins = self.binaries.loc[t_ini:t_end, label].dropna(how='all')
+        #--------------
+        
+        #---------
+        # Definition of output with time, x, y[ and z]
+        if apply_to_z:
+            print('Creating 3 arrays of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
+            u = np.full((len(bins), Nx, sim.ny), np.nan)
+            v = np.full((len(bins), Nx, sim.ny), np.nan)
+            w = np.full((len(bins), Nx, sim.ny), np.nan)
+            dims_u = ['time', 'x', 'y']
+            dims_w = ['time', 'x', 'y']
+        else: 
+            print('Creating 3 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, sim.nz_tot))
+            u = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
+            v = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
+            w = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
+            dims_u = ['time', 'x', 'y', 'z_u']
+            dims_w = ['time', 'x', 'y', 'z_w']
+        print(' done.')
+        #---------
+
+        #---------
+        # Iterate between uvw_jt files
+        for i,col in enumerate(bins):
+            if not isinstance(col, str): continue
+            print(col)
+            aux = routines.readBinary(col, simulation=sim)
+
+            #------
+            # Reduce z coordinate if theres a z_function
+            if apply_to_z:
+                aux = [ z_function(el) for el in aux ]
+            #------
+
+            ui,vi,wi = aux
+            u[i] = ui
+            v[i] = vi
+            w[i] = wi
+            #---------
+        #---------
+
+        #---------
+        # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        if as_dataarray:
+            out = [ utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()),
+                utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()),
+                utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()), ]
+
+            #u,v,w = utils.get_dataarray([u, v, w], simulation=sim, with_time=bins.index.tolist())
+        else:
+            out = [u, v, w]
+        #---------
+
+        return out
+
+
+
+    def compose_uv0(self, times=None, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True):
+        """
+        Puts together everything in time, but can't compose endless patches. Output
+        matrices indexes are
+        time, x, y, z
+
+        Parameters
+        ----------
+        self: lp.Output
+        times: slice
+            slice with which times to read.
+        simulation: lp.Simulation
+            to be used as base
+        trim: bool
+            whether to trim two extra points in x axis
+        """
+        from .. import utils, routines
+        import numpy as np
+        import pandas as pd
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError("You need to provide a simulation object here")
+
+        #--------------
+        # Only these types of file we deal with here
+        labels = ['uv0_jt']
+        #--------------
+
+        #--------------
+        # Adjust intervals
+        if type(times)!=type(None):
+            bins = self.binaries.loc[times, labels].dropna(axis=1, how='all')
+        else:
+            if t_end is None:
+                bins = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+            else:
+                bins = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+        #--------------
+
+        #---------
+        # Definition of output with time, x, y[ and z]
+        print('Creating 2 arrays of {}, {}, {}...'.format(len(bins), sim.domain.nx, sim.ny), end='')
+        u0 = np.full((len(bins), sim.nx, sim.ny), np.nan)
+        v0 = np.full((len(bins), sim.nx, sim.ny), np.nan)
+        print(' done.')
+        #---------
+
+        #---------
+        # Iterates on the timestamps to put the time-indexed array together
+        for i, tstep in enumerate(bins.index):
+            iSeries = bins.loc[tstep]
+
+            #---------
+            # Iterate between uvw_jt, vel_t and theta_jt
+            # Currently only works with uvw_jt (I think)
+            for col in iSeries:
+                if not isinstance(col, str): continue
+                print(col)
+                aux = routines.readBinary(col, simulation=sim)
+                ui,vi = aux
+                u0[i] = ui
+                v0[i] = vi
+            #---------
+        #---------
+
+        #---------
+        # Trims the extra node(s) at the end of the x coordinate
+        if trim:
+            u0 = u0[:, :sim.nx]
+            v0 = v0[:, :sim.nx]
+        #---------
+
+        #---------
+        # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        if as_dataarray:
+            u0 = utils.get_DA(u0, simulation=sim, dims=['time', 'x', 'y'], time=bins.index.tolist())
+            v0 = utils.get_DA(v0, simulation=sim, dims=['time', 'x', 'y'], time=bins.index.tolist())
+        #---------
+
+        return u0, v0
+
+
+    def _compose_par(self, nprocs=10, t_ini=None, t_end=None, **kwargs):
+        import multiprocessing
+        from multiprocessing import Pool
+        bounds = [t_ini, t_end]
+        def par_compose_uvwT(x):
+            return out.compose_uvwT(simulation=sim, t_ini=x[0], t_end=x[1], **kwargs)
+        pool = Pool(processes=nprocs)
+        outs = pool.map(par_compose_uvwT, bounds)
+        return zip(*outs)
+
+
+
+class Output_old(object):
+    """
+    Class that holds the output of the model and processes it.
+    It's diferent from the Simulation class, but it can't do stuff without it.
+    """
+    def __init__(self, oppath, apply_basename=False, n_cons=[1], separate_ncon=True, verbose=False):
+        """
         Lists every output file from a simulation (so far only vel_sc, vel_t, temp_t and con_tt)
 
         oppath can be either the directory of the output, or one of the outuput binary files
@@ -98,9 +475,124 @@ class Output(object):
         print('... done reading and organizing.')
         return
 
+    def compose_edls(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, trim=True):
+        """
+        Puts together particle outputs in space (for ENDLESS patches) and in time
+
+        t_ini, t_end: int
+            initial and final time steps
+        simulation: lespy.Simulation object
+            simulation to consider when processing the results
+        as_dataarray: bool
+            if true, return xarray.DataArray. If false, return np.ndarray object
+        apply_to_z: bool
+            If true, z_function is applied to each instantaneous 3D patch before
+            merging into final array and final array has shape (time, x, y[, n_con]).
+            If false, full 3D patch is merged and final array has shape (time,x,y,z[,n_con]).
+            Currently only tested for endless (con_tt outputs).
+        z_function: function
+            Function (should be manually set to apply on z axis) to be applied on z axis
+            if apply_to_z in True.
+        dtype: numpy.type, python.type
+            type to initialize the array with.
+        """
+        from .. import utils, routines
+        import numpy as np
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError("You need to provide a simulation object here")
+
+        #--------------
+        # Adjust intervals
+        labels = ['con_tt']
+        if type(times)!=type(None):
+            cons = self.binaries.loc[times, labels].dropna(axis=1, how='all')
+        else:
+            if t_end is None:
+                cons = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+            else:
+                cons = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+        #--------------
+
+        #--------------
+        # Making sure we have the right result
+        if len(cons.columns) not in [1,2]:
+            raise ValueError('Columns are: {} and there should be only con_tt and/or vel_sc left'.format(cons.columns.tolist()))
+        #--------------
+
+        #--------------
+        # Case with endless (with endless, all pcon should be in con_tt)
+        else:# 'con_tt' in cons.columns.tolist():
+            cons = cons.con_tt.dropna()
+       
+            #---------
+            # For too-large sizes, it's better to integrate over z patch-by-patch
+            print(self)
+            print(self.n_cons)
+            shape=(len(cons), len(self.n_cons))
+            print('Creating object array of shape', shape)
+            pcons = np.full(shape, np.nan, dtype='object')
+            #---------
+
+            #---------
+            # First we find the max and min row and col
+            rows = []
+            cols = []
+            for patches in cons:
+                for n_i in range(len(self.n_cons)):
+                    for patch in patches[n_i]:
+                        ndtime, ncon, row, col = utils.nameParser(patch)
+                        rows.append(row)
+                        cols.append(col)
+            min_row, min_col = min(rows), min(cols)
+            #---------
+
+            #--------
+            # We iterate over the different sizes of pcon.
+            # Here n_i is a local integer and n_cons is a lit with the files for one size
+            for n_i, n_con in enumerate(self.n_cons):
+                print(n_i, n_con)
+
+                #---------
+                # Now we iterate again over the time steps to read the files of one pcon size
+                for i, ndtime in enumerate(cons.index):
+                    print(i, ndtime, n_con)
+                    clist = []
+                    for patch in cons.loc[ndtime][n_i]:
+                        ndtime, ncon, row, col = utils.nameParser(patch)
+                        con = routines.readBinary2(patch, simulation=sim, read_pcon=True, only_pcon=True, trim=trim)
+                        
+                        X = sim.domain.x + sim.lx*(col-min_col)
+                        Y = sim.domain.y + sim.ly*(row-min_row)
+
+                        #--------
+                        # Here we apply the z_function to 3D patch, making it 2D (x, y), and merge
+                        if apply_to_z:
+                            aux = z_function(con[:sim.nx,:,:])
+                            if as_dataarray:
+                                pcon = sim.DataArray(aux, dims=['x', 'y'], coords=dict(x=X, y=Y))
+                        else:
+                            aux = con[:sim.nx,:,:]
+                            if as_dataarray:
+                                pcon = sim.DataArray(aux, dims=['x', 'y', 'z'], coords=dict(x=X, y=Y, z=sim.domain.z_u))
+                        clist.append(pcon)
+                        #--------
+                    pcons[i, n_i] = clist
+                #---------
+            #--------
+            if as_dataarray==True:
+                import xarray as xr
+                pcons = xr.DataArray(pcons, dims=['time', 'size'], 
+                        coords=dict(time=cons.index.tolist(), size=range(sim.n_con)))
+            return pcons
+
+
 
     def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, trim=True):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
         creating one big 5-dimensional numpy array in return, with the axes being
@@ -157,62 +649,7 @@ class Output(object):
         #--------------
         # Case with endless (with endless, all pcon should be in con_tt)
         elif 'con_tt' in cons.columns.tolist():
-            cons = cons.con_tt.dropna()
-
-            #--------
-            # We iterate over the different sizes of pcon.
-            # Here n_i is a local integer and n_cons is a lit with the files for one size
-            pcons = []
-            for n_i, n_con in enumerate(self.n_cons):
-                print(n_i, n_con)
-                #---------
-                # First now for each pcon size, we find the max and min row 
-                # and col to find the dimension of the array that will hold the results.
-                rows = []
-                cols = []
-                for patches in cons:
-                    for patch in patches[n_i]:
-                        ndtime, ncon, row, col = utils.nameParser(patch)
-                        rows.append(row)
-                        cols.append(col)
-                delta_rows = max(rows) - min(rows) + 1
-                delta_cols = max(cols) - min(cols) + 1
-                #---------
-    
-                #---------
-                # For too-large sizes, it's better to integrate over z patch-by-patch
-                if apply_to_z:
-                    print('Creating array of ',(len(cons), delta_cols*sim.nx, delta_rows*sim.ny))
-                    pcon = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny), np.nan, dtype=dtype)
-                else:
-                    print('Creating array of ',(len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot))
-                    pcon = np.full((len(cons), delta_cols*sim.nx, delta_rows*sim.ny, sim.nz_tot), np.nan, dtype=dtype)
-                #---------
-
-                #---------
-                # Now we iterate again over the time steps to read the files of one pcon size
-                for i, ndtime in enumerate(cons.index):
-                    print(i, ndtime, n_con)
-                    for patch in cons.loc[ndtime][n_i]:
-                        ndtime, ncon, row, col = utils.nameParser(patch)
-                        con = routines.readBinary2(patch, simulation=sim, read_pcon=True, only_pcon=True, trim=trim)
-        
-                        min_yj = (row - min(rows))*sim.ny
-                        max_yj = min_yj + sim.ny
-    
-                        min_xi = (col - min(cols))*sim.nx
-                        max_xi = min_xi + sim.nx
-    
-                        #--------
-                        # Here we apply the z_function to 3D patch, making it 2D (x, y), and merge
-                        if apply_to_z:
-                            pcon[i, min_xi:max_xi, min_yj:max_yj] = z_function(con[:sim.nx,:,:])
-                        else:
-                            pcon[i, min_xi:max_xi, min_yj:max_yj, :] = con[:sim.nx,:,:]
-                        #--------
-                pcons.append(pcon)
-                #---------
-            #--------
+            raise NotImplementedError('Use compose_edls() function')
         #---------
 
         #---------
@@ -225,8 +662,10 @@ class Output(object):
             if apply_to_z:
                 print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.n_con))
                 pcons = np.full((len(cons), sim.nx, sim.ny, sim.n_con), np.nan, dtype=dtype)
+                dims=['time', 'x', 'y', 'size']
             else:
                 print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con))
+                dims=['time', 'x', 'y', 'z', 'size']
                 pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan, dtype=dtype)
             #---------
 
@@ -247,9 +686,16 @@ class Output(object):
             print(cons.columns.tolist())
 
         if as_dataarray:
-            return utils.get_dataarray(pcons, simulation=sim, with_time=cons.index.tolist())
+            #output = utils.get_dataarray(pcons, simulation=sim, with_time=cons.index.tolist())
+            output = utils.get_DA(pcons, simulation=sim, dims=dims, time=cons.index.tolist())
+            if type(output)==list:
+                return output[0]
+            else: return output
         else:
-            return pcons
+            if type(pcons)==list:
+                return pcons[0]
+            else:
+                return pcons
 
 
     def compose_uvwT(self, times=None, t_ini=0, t_end=None, simulation=None, trim=True, as_dataarray=True,
@@ -305,12 +751,16 @@ class Output(object):
             v = np.full((len(bins), Nx, sim.ny), np.nan)
             w = np.full((len(bins), Nx, sim.ny), np.nan)
             T = np.full((len(bins), Nx, sim.ny), np.nan)
+            dims_u = ['time', 'x', 'y']
+            dims_w = ['time', 'x', 'y']
         else: 
             print('Creating 4 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, sim.nz_tot), end='')
             u = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
             v = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
             w = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
             T = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
+            dims_u = ['time', 'x', 'y', 'z_u']
+            dims_w = ['time', 'x', 'y', 'z_w']
         print(' done.')
         #---------
 
@@ -363,7 +813,11 @@ class Output(object):
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
-            u,v,w,T = utils.get_dataarray([u, v, w, T], simulation=sim, with_time=bins.index.tolist())
+            #u,v,w,T = utils.get_dataarray([u, v, w, T], simulation=sim, with_time=bins.index.tolist())
+            u,v,w,T = [ utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()),
+                utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()),
+                utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()),
+                utils.get_DA(T, simulation=sim, dims=dims_u, time=bins.index.tolist()), ]
         #---------
 
         return u,v,w,T

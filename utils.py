@@ -2,8 +2,8 @@ def paramParser(nmlpath):
     """Function that parses parameters from param.nml namelist files
     """
     #from .nml import read
-    from .f90nml import read
-    from os.path import basename, isfile, exists, join, abspath
+    from f90nml import read
+    from os.path import isfile, exists, join, abspath, basename, dirname
     from os import remove
 
     if exists(nmlpath):
@@ -16,12 +16,21 @@ def paramParser(nmlpath):
         #----------
         # If it's a dir, we first look the param.nml in the dir and then in the codebkp dir
         else:
+            nmlpath=abspath(nmlpath)
             try:
-                namelist = open(join(nmlpath, 'param.nml'), 'rt')
-                print('Found param.nml at {}'.format(abspath('param.nml')))
+                nmlFpath=join(nmlpath, 'param.nml')
+                namelist = open(nmlFpath, 'rt')
+                #namelist = open(join(nmlpath, 'param.nml'), 'rt')
             except:
-                namelist = open(join(nmlpath, 'codebkp/param.nml'), 'rt')
-                print('Found param.nml at {}'.format(abspath('codebkp/param.nml')))
+                if basename(nmlpath)=='output':
+                    nmlFpath=join(dirname(nmlpath), 'param.nml')
+                    namelist = open(nmlFpath, 'rt')
+                    #namelist = open(join(dirname(nmlpath), 'param.nml'), 'rt')
+                else:
+                    nmlFpath=join(nmlpath, 'codebkp/param.nml')
+                    namelist = open(nmlFpath, 'rt')
+                    #namelist = open(join(nmlpath, 'codebkp/param.nml'), 'rt')
+            print('Found param.nml at {}'.format(nmlFpath))
         #----------
 
     else:
@@ -41,28 +50,38 @@ def nameParser(fname):
     """
     from os import path
     fname = path.basename(fname)
+    import re
 
     if 'con_tt' in fname:
-        import re
         numbers = re.split('[a-z. +_]',fname)
         ndtime, pcon_n, row, col = [ int(el) for el in numbers if el is not '' ]
         return int(ndtime), pcon_n, row, col
-
-    if 'vel_sc' in fname:
-        start='vel_sc'
-
-    if 'vel_t' in fname:
-        start='vel_t'
-
-    if 'temp_t' in fname:
-        start='temp_t'
-
-    if 'div_z0_t' in fname:
-        start='div_z0_t'
-
-
-    ndtime = fname.strip(start).strip('.out')
+    else:
+        ndtime = [ el for el in re.split('[a-z. +_]',fname) if el!= '' ][-1]
     return int(ndtime)
+
+#    if 'vel_sc' in fname:
+#        start='vel_sc'
+#
+#    elif 'vel_t' in fname:
+#        start='vel_t'
+#
+#    elif 'temp_t' in fname:
+#        start='temp_t'
+#
+#    elif 'div_z0_t' in fname:
+#        start='div_z0_t'
+#    elif 'uvw_jt' in fname:
+#        start='uvw_jt'
+#    elif 'div_z0_t' in fname:
+#        start='div_z0_t'
+#    elif 'div_z0_t' in fname:
+#        start='div_z0_t'
+#    else:
+#        return None
+#
+#    ndtime = fname.strip(start).strip('.out')
+#    return int(ndtime)
 
 
 def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
@@ -163,6 +182,7 @@ def np2vtr(arrays, outname):
     """
     from .pyevtk.hl import gridToVTK
     import numpy as np
+    import xarray as xr
 
     coords = list(arrays.values())[0].coords
     x = coords['x'].values
@@ -184,11 +204,48 @@ def np2vtr(arrays, outname):
         for tstep in timestamps:
             tstep = int(tstep)
             print('Writing t=',tstep,'to vtr')
-            #for key, val in arrays.items():
-            #    points.update({ key:val.sel(time=tstep).values })
-            gridToVTK(outname.format(tstep), x,y,z, pointData = points)
+            for key, val in arrays.items():
+                #val = val.sel(time=tstep)
+                #out = xr.DataArray(np.ascontiguousarray(val.values), coords=val.coords, dims=val.dims)
+                points.update({ key : np.ascontiguousarray(val.sel(time=tstep).values) })
+                gridToVTK(outname.format(tstep), x,y,z, pointData = points)
 
     return
+
+
+def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
+    """
+    Gets a dataarray from pcons
+    
+    pcons: list or np.array
+        If it's a list the domains can be different
+    with_time: list, array
+        list that will serve as the time index
+    """
+    import xarray as xr
+    sim = simulation
+
+    if 'time' in dims:
+        if time:
+            coords=dict(time=time)
+        else:
+            print('Provide time kwarg')
+    else:
+        coords=dict()
+
+    for dim in dims:
+        if dim=='time': continue
+        if dim.startswith('z'):
+            coords['z'] = sim.domain.__dict__[dim]
+        elif dim=='size':
+            coords['size'] = sim.droplet_sizes
+        else:
+            coords[dim] = sim.domain.__dict__[dim]
+    dims = [ 'z' if dim.startswith('z') else dim for dim in dims ]
+
+    return xr.DataArray(array, dims=dims, coords=coords, **kwargs)
+    #----------
+
 
 
 
@@ -258,7 +315,10 @@ def get_dataarray(pcons, simulation=None, with_time=False):
         #-------
         if (len(pcon.shape)-time) == 5:
             raise ValueError("Too many dimensions in array")
-        return sim.DataArray(pcons, coords=coords)
+        try:
+            return sim.DataArray(pcons, coords=coords, dims=['x', 'y', 'z'])
+        except:
+            return sim.DataArray(pcons, coords=coords, dims=['time', 'x', 'y', 'z'])
     #----------
 
 

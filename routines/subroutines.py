@@ -50,60 +50,124 @@ def postProcess2D(model_outputdir, t_ini=100000, t_end=None, simulation=None, re
     return outdat
 
 
-def _readBinary3(fname, simulation=None, domain=None, engine='fortran', n_con=None):
+
+def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True):
     """
     Reads a binary file according to the simulation or domain object passed
 
-    Passing a simulation might not be trustworthy because it might refer to different files
+    Parameters
+    ----------
+    fname: string
+        path of the binary file you want to open
+    simulation: lespy.Simulation
+        simulation that contains important information to assemble the file. Mostly
+        it's used to get number of points, if temperature is in the file or not and n_con.
+    domain: lespy.Domain
+        depending on what you're doing, just a domain file suffices
+    read_pcon: bool
+        if the file is vel_sc, try to read pcon after it finishes reading u,v,w,T.
+        It just gives a warning if it fails
+    n_con: int
+        number of pcon sizes to read. Overwrites n_con from simulation
+    only_pcon: bool
+        if file is vel_sc, skip u,v,w,T and read just pcon. Makes reading pcon a lot faster.
     """
     from os import path
     from .. import Simulation
     import numpy as np
-    from struct import unpack, error
 
     if isinstance(simulation, str):
         from ..simClass import Simulation as Sim
         simulation = Sim(simulation)
 
     #---------
-    # Dealing with pre-requesites. Using only domain is more general
-    if (simulation==None) and (domain==None):
-        domain = Simulation(path.dirname(path.abspath(fname))).domain
-        sim=None
-    elif (simulation==None) and (domain!=None):
-        sim=None
-    elif (simulation!=None) and (domain==None):
+    # Trying to be general
+    if simulation!=None:
         sim = simulation
         domain = sim.domain
     else:
-        sim = simulation
+        if domain==None:
+            sim = Simulation(path.dirname(path.abspath(fname)))
+            domain = sim.domain
+        else:
+            sim = Simulation(domain=domain, n_con=n_con)
     #---------
+
+    #---------
+    # Useful for later. Might as well do it just once here
+    u_nd = domain.nx*domain.ny*domain.nz_tot
+    u_nd2 = domain.ld*domain.ny
+    #---------
+
+    #---------
+    bfile = open(fname, 'rb')
+    #---------
+
+    if path.basename(fname).startswith('uv0_jt'):
+        u0, v0 = np.fromfile(bfile, dtype=np.float64).reshape(2,-1, order='C')
+        u0 = u0.reshape((domain.nx, domain.ny), order='F')
+        v0 = v0.reshape((domain.nx, domain.ny), order='F')
+        if as_DA:
+            u0=sim.DataArray(u0*sim.u_scale, dims=['x', 'y'])
+            v0=sim.DataArray(v0*sim.u_scale, dims=['x', 'y'])
+        return u0, v0
 
     #--------------
     # For fortran unformatted output you have to skip first 4 bytes
-    bfile = open(fname, 'rb')
     bfile.read(4)
     #--------------
     
-    if path.basename(fname).startswith('con_tt'):
-        p_nd = domain.ld*domain.ny*domain.nz_tot*sim.n_con
-        pcon = unpack('d'*p_nd, bfile.read(8*p_nd))
-        pcon = np.array(pcon).reshape((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), order='F')
+    #---------
+    # Straightforward
+    if path.basename(fname).startswith('pcon_jt'):
+        if n_con==None:
+            n_con = sim.n_con
+        p_nd = u_nd*n_con
+        pcon = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        pcon *= sim.pcon_scale
+        if as_DA:
+            pcon=sim.DataArray(pcon, dims=['x', 'y', 'z'])
         return pcon
-    
-    elif path.basename(fname).startswith('vel_sc'):
-        u_nd = domain.ld*domain.ny*domain.nz_tot
-        u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.ld, domain.ny, domain.nz_tot), order='F')
-        return u,v,w, T
-        #--------
-
-    return
     #---------
     
+    #---------
+    # Straightforward
+    elif path.basename(fname).startswith('theta_jt'):
+        T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        T = 2.*sim.t_init - T*sim.t_scale
+        if as_DA:
+            T=sim.DataArray(T, dims=['x', 'y', 'z'])
+        return T
+    #---------
 
+    #---------
+    # Straightforward
+    elif path.basename(fname).startswith('uvw_jt'):
+        u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, domain.nz_tot), order='F')
+        u = u*sim.u_scale
+        v = v*sim.u_scale
+        w =-w*sim.u_scale
+        if as_DA:
+            u=sim.DataArray(u, dims=['x', 'y', 'z_u'])
+            v=sim.DataArray(v, dims=['x', 'y', 'z_u'])
+            w=sim.DataArray(w, dims=['x', 'y', 'z_w'])
+        return u,v,w
+    #---------
+
+    #---------
+    # Spectra
+    elif path.basename(fname).startswith('spec_uvwT'):
+        ndz=4*(domain.nx//2)*(domain.nz_tot-1)
+        u,v,w,T = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((4,domain.nx//2, domain.nz_tot-1), order='F')
+        print('Not normalized')
+        return u,v,w,T
+    #---------
+
+    return
+
+    
 def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None, only_pcon=False, 
         trim=True, as_dataarray=False):
     """
@@ -196,10 +260,27 @@ def readBinary2(fname, simulation=None, domain=None, read_pcon=True, n_con=None,
     #---------
     # Straightforward
     elif path.basename(fname).startswith('div_z0_t'):
+        #-----
+        # Note that we will multiply by u_star at the bottom of the function, so we only vidide by z_i here
         u = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')/sim.inversion_depth
         v = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')/sim.inversion_depth
         w =-np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')/sim.inversion_depth
+        #-----
     #---------
+
+    elif path.basename(fname).startswith('vel_srf'):
+        u = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale
+        v = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale
+        return u, v
+
+ 
+    elif path.basename(fname).startswith('dvel_srf'):
+        ux = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        uy = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        vx = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        vy = np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        wz =-np.fromfile(bfile, dtype=np.float64, count=u_nd2).reshape((domain.ld, domain.ny), order='F')*sim.u_scale/sim.inversion_depth
+        return ux, uy, vx, vy, wz
 
     #---------
     # Here lies the problem! The same file name for a bunch of formats! (should consider change)
@@ -303,9 +384,14 @@ def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=
     sim=simulation
 
     w_star=sim.w_star
-    uw_scale=sim.u_scale/w_star
+    u_scale=sim.u_scale
+    if use_deardorff:
+        uw_scale=sim.u_scale/w_star
+        t_conv=sim.inv_depth/w_star
+    else:
+        uw_scale=sim.u_scale/u_scale
+        t_conv=np.inf
     t_star=sim.inv_depth/sim.u_scale
-    t_conv=sim.inv_depth/w_star
     count=sim.p_count
     Z=sim.domain.z_w[:-1]
 
@@ -318,12 +404,18 @@ def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=
     print('Opening', path+'/aver_sgs_t3.out')
     sgs_t3=fromtxt(path+'/aver_sgs_t3.out', skip_header=Nstart//count)
     ndtimes=sgs_t3[:,0]
-    sgs_t3=sgs_t3[:,1:]*sim.t_scale*sim.u_scale/sim.wt_s
+    if use_deardorff:
+        sgs_t3=sgs_t3[:,1:]*sim.t_scale*sim.u_scale/sim.wt_s
+    else:
+        sgs_t3=sgs_t3[:,1:]
     
     print('Using', nblocks*block, 'lines of', len(sgs_t3), 'lines read from files.')
 
     print('Opening', path+'/aver_sgs_wt.out')
-    res_t3=fromtxt(path+'/aver_wt.out', skip_header=Nstart//count)*sim.t_scale*sim.u_scale/sim.wt_s
+    if use_deardorff:
+        res_t3=fromtxt(path+'/aver_wt.out', skip_header=Nstart//count)*sim.t_scale*sim.u_scale/sim.wt_s
+    else:
+        res_t3=fromtxt(path+'/aver_wt.out', skip_header=Nstart//count)
     res_t3=res_t3[:,1:]
     
     wT=res_t3+sgs_t3
