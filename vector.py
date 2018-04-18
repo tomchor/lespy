@@ -34,7 +34,7 @@ def div_2d(u, v, axes=(0,1)):
     div = nm.diff_fft(u, axis=axes[0]) + nm.diff_fft(v, axis=axes[1])
     return div
 
-def velgrad_tensor(u_vec, simulation=None, trim=True):
+def velgrad_tensor(u_vec, simulation=None, trim=True, w_int=None):
     """
     u_vec is a list with [u, v, w]
     u, v, and w should be xarrays
@@ -48,16 +48,20 @@ def velgrad_tensor(u_vec, simulation=None, trim=True):
     for i, (vec, vec_s) in enumerate(zip(u_vec, u_st)):
         for j, dim in enumerate(dims[:2]):
             print('R[{},{}] = {}_{}'.format(i, j, vec_s, dim))
-            R[i,j] = numerical.diff_fft_xr(vec, dim=dim)
+            if type(w_int)!=type(None) and vec_s=='w':
+                R[i,j] = numerical.diff_fft_xr(w_int, dim=dim)
+            else:
+                R[i,j] = numerical.diff_fft_xr(vec, dim=dim)
+
         print('R[{},2] = {}_z'.format(i, vec_s))
         R[i,2] = -vec.diff(dim='z')/sim.domain.dz
         R[i,2].coords['z'] = R[i,2].coords['z'] + sim.domain.dz/2
 
     if trim:
-        for i in range(2):
-            for j in range(2):
-                R[i,j] = R[i,j].isel(z=slice(None,-1))
-
+        zlen = len(R[2,2].coords['z']) # The shortest
+        for i in range(3):
+            for j in range(3):
+                R[i,j] = R[i,j].isel(z=slice(None,zlen-1))
     return R
 
 

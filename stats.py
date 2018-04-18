@@ -5,11 +5,13 @@ def JPDF(*args, **kwargs):
     wrapper around np.histogram2d to make it easier
     to make the plots
     """
+    import xarray as xr
     jpdf, xedges, yedges = _np.histogram2d(*args, **kwargs)
     xcenters=(xedges[1:]+xedges[:-1])/2
     ycenters=(yedges[1:]+yedges[:-1])/2
-    y_mesh, x_mesh = _np.meshgrid(ycenters, xcenters)
-    return x_mesh, y_mesh, jpdf
+    x_mesh, y_mesh = _np.meshgrid(xcenters, ycenters, indexing='ij')
+    #y_mesh, x_mesh = _np.meshgrid(ycenters, xcenters, indexing='xy')
+    return jpdf, x_mesh, y_mesh,
 
 
 
