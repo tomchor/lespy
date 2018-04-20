@@ -4,6 +4,7 @@ from .core import *
 from .routines import *
 from . import core, utils, routines, plot, plot2, physics
 from . import vector, numerical, stats, spectral#, nml
+from .io import *
 #from . import convection
 #from .fortran import numfor
 #import xarray
