@@ -128,7 +128,7 @@ def droppletTimeScale(diam, rho_d=859.870, mu=1.08e-3):
     return np.piecewise(Re, [Re<0.2, 0.2<=Re<750, Re>750], [lambda t: TS, lambda t: TS/(1+0.15*(Re**0.687)), np.nan])
 
 
-def get_zi(wT, xy_axis=(1,2), simulation=None):
+def get_zi(wT, xy_axis=None, z_axis=0, simulation=None):
     """
     Calculates the inversion depth as a function of time
     
@@ -137,7 +137,11 @@ def get_zi(wT, xy_axis=(1,2), simulation=None):
     """
     import numpy as np
     wT = np.asarray(wT)
-    z_idx = np.argmin(wT.mean(axis=xy_axis), axis=1)
+    if type(xy_axis) !=type(None):
+        z_idx = np.argmin(wT.mean(axis=xy_axis), axis=z_axis)
+    else:
+        z_idx = np.argmin(wT, axis=z_axis)
+
     if simulation==None:
         return z_idx
     else:
