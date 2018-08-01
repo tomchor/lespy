@@ -145,7 +145,7 @@ def get_zi(wT, xy_axis=None, z_axis=0, simulation=None):
     if simulation==None:
         return z_idx
     else:
-        return simulation.domain.z[z_idx]
+        return simulation.domain.z_w[z_idx]
 
 def w_star(simulation=None, zi=None, wt_s=None, t_init=None):
     """Calculates the convective scale"""

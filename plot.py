@@ -479,3 +479,57 @@ def plane2(plane, outname=None, which='xy', simulation=None, interpolation=None,
 
 
 
+def plot_edls(lsc, ax=None, extent=None, logscale=True, clim=[None, None], aspect=None, interp=None):
+    """Plot list of endless patches in their correct place.
+    The patches must be xarray.DataArrays
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    options = dict(vmin=clim[0], vmax=clim[1], add_colorbar=True, x='x', y='y', interpolation=None, aspect=aspect)
+    options2 = dict(vmin=-0.02, vmax=0.02, add_colorbar=True, x='x', y='y', interpolation=None, aspect=aspect, cmap="seismic")
+
+    #------
+    # Determine extent
+    if type(extent)==type(None):
+        minx, maxx, miny, maxy = [], [], [], []
+        for arr3 in lsc:
+            minx.append(arr3.coords['x'].values.min())
+            maxx.append(arr3.coords['x'].values.max())
+            miny.append(arr3.coords['y'].values.min())
+            maxy.append(arr3.coords['y'].values.max())
+        extent =  min(minx), max(maxx), min(miny), max(maxy)
+    #------
+
+    #------
+    # Determine scale
+    if logscale:
+        from matplotlib.colors import LogNorm
+        options['norm'] = LogNorm()
+    print(options)
+    #------
+
+    if type(ax)==type(None):
+        fig, axes = plt.subplots(ncols=1, figsize=(8,8), sharex=True, sharey=True, squeeze=False)
+        axes=axes.flatten()
+    else:
+        axes=ax
+    print(axes)
+
+    for i, patch in enumerate(lsc):
+        patch=abs(patch)
+        patch.plot.imshow(ax=axes[0], **options)
+        if i==0:
+            options['add_colorbar']=False
+            options2['add_colorbar']=False
+
+    for ax in axes:
+        ax.set_xlim(*extent[:2])
+        ax.set_ylim(*extent[2:])
+        ax.set_xticks(np.arange(extent[0],extent[1], 500), minor=True)
+        ax.set_yticks(np.arange(extent[2],extent[3], 500), minor=True)
+        ax.set_xticks(np.arange(extent[0],extent[1], 1000), minor=False)
+        ax.set_yticks(np.arange(extent[2],extent[3], 1000), minor=False)
+        ax.set_aspect(1)
+    axes[0].grid(True, which="both", color="w")
+    return ax
+

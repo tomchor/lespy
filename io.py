@@ -1,12 +1,18 @@
 import numpy as _np
 
-def empty_array(simulation, n_con=False):
+def empty_array(simulation, n_con=False, trimmed=True):
     """ Creates an empty array with the shape dictated by simulation """
     sim=simulation
-    if n_con:
-        blank=_np.full((sim.domain.ld, sim.ny, sim.nz_tot, sim.n_con), _np.nan, dtype=_np.float64)
+    if trimmed:
+        Nx = sim.nx
     else:
-        blank=_np.full((sim.domain.ld, sim.ny, sim.nz_tot), _np.nan, dtype=_np.float64)
+        Nx = sim.domain.ld
+
+
+    if n_con:
+        blank=_np.full((Nx, sim.ny, sim.nz_tot, sim.n_con), _np.nan, dtype=_np.float64)
+    else:
+        blank=_np.full((Nx, sim.ny, sim.nz_tot), _np.nan, dtype=_np.float64)
     return blank
 
 

@@ -420,3 +420,12 @@ def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=
     return axes
 
 
+def combine_DAs(DAs):
+    """
+    Combines DataArrays based on their coordinates. Usefull for endless patches
+    """
+    out = DAs[0]
+    for DA in DAs[1:]:
+        out = out.combine_first(DA)
+    return out
+
