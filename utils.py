@@ -27,7 +27,10 @@ def paramParser(nmlpath):
                     namelist = open(nmlFpath, 'rt')
                     #namelist = open(join(dirname(nmlpath), 'param.nml'), 'rt')
                 else:
-                    nmlFpath=join(nmlpath, 'codebkp/param.nml')
+                    from glob import glob
+                    params_list = sorted(glob(join(nmlpath, 'codebkp*/param.nml')))
+                    #nmlFpath=join(nmlpath, 'codebkp/param.nml')
+                    nmlFpath=params_list[-1]
                     namelist = open(nmlFpath, 'rt')
                     #namelist = open(join(nmlpath, 'codebkp/param.nml'), 'rt')
             print('Found param.nml at {}'.format(nmlFpath))
@@ -226,19 +229,21 @@ def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
     sim = simulation
 
     if 'time' in dims:
-        if time:
+        if type(time)!=type(None):
             coords=dict(time=time)
         else:
             print('Provide time kwarg')
     else:
         coords=dict()
 
-    for dim in dims:
+    for i, dim in enumerate(dims):
         if dim=='time': continue
         if dim.startswith('z'):
-            coords['z'] = sim.domain.__dict__[dim]
+            coords['z'] = sim.domain.__dict__[dim].take(_np.arange(0,array.shape[i]), axis=0)
         elif dim=='size':
             coords['size'] = sim.droplet_sizes
+        elif dim=='w_r':
+            coords['w_r'] = sim.vel_settling
         else:
             coords[dim] = sim.domain.__dict__[dim]
     dims = [ 'z' if dim.startswith('z') else dim for dim in dims ]

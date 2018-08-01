@@ -398,7 +398,7 @@ def animate_hv(darr, simulation=None, saveas='', xy_dims=['x', 'y'],
     if type(darr)==xr.core.dataarray.DataArray:
         dsarr = xr.Dataset({clabel:darr})
     elif type(darr)==xr.core.dataarray.Dataset:
-        pass
+        dsarr = darr
     else:
         print('submit dataarray or dataset')
 
