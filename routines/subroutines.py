@@ -294,7 +294,7 @@ def monitor_stats(path, simulation=None, block=50, nblocks=6, Nstart=0, outname=
     
     print('Using', nblocks*block, 'lines of', len(sgs_t3), 'lines read from files.')
 
-    print('Opening', path+'/aver_sgs_wt.out')
+    print('Opening', path+'/aver_wt.out')
     if use_deardorff:
         res_t3=fromtxt(path+'/aver_wt.out', skip_header=Nstart//count)*sim.t_scale*sim.u_scale/sim.wt_s
     else:
