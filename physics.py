@@ -47,7 +47,8 @@ def termVelocity(d, mu=mu_w, rho=rho_w, delta_rho=(rho_w-rho_oil)):
     """
     import numpy as np
     d=np.asarray(d)
-    conds = [ d<=1e-3, (1e-3<d)*(d<15.e-3) ]
+    tlim=5e-3
+    conds = [ d<=tlim, (tlim<d)*(d<15.e-3) ]
     funcs = []
     funcs.append( lambda d: get_R(d, mu=mu, rho=rho, delta_rho=delta_rho)*mu/(rho*d))
     funcs.append( None )
@@ -59,7 +60,7 @@ def get_dropletSize(wr, mu=mu_w, rho=rho_w, delta_rho=(rho_w-rho_oil), nominal=F
     Calculates the droplet size in micrometers for a given set of terminal velocities
     """
     import numpy as np
-    D=np.linspace(1e-8, 1e-3, 500)
+    D=np.linspace(1e-10, 1e-2, 1000)
     Wr = termVelocity(D, mu=mu, rho=rho, delta_rho=delta_rho)
     diam = np.interp(wr, Wr, D)
     if nominal:
