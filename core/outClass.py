@@ -79,7 +79,7 @@ class Output(object):
 
 
     def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, pcon_index="size"):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, pcon_index="size", nz=None, nz_full=None):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
         creating one big 5-dimensional numpy array in return, with the axes being
@@ -143,7 +143,7 @@ class Output(object):
 
         for i, fname in enumerate(cons):
             print(i, cons.index[i], fname)
-            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=False, nz=nz)
+            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=False, nz=nz, nz_full=nz_full)
 
             #--------
             # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge
@@ -162,7 +162,7 @@ class Output(object):
 
 
     def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None, nz_full=None):
         """
         Puts together everything in time
         Output array indexes are
@@ -228,7 +228,7 @@ class Output(object):
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
             print(col)
-            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz)
+            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz, nz_full=nz_full)
 
             #------
             # Reduce z coordinate if theres a z_function
@@ -259,7 +259,7 @@ class Output(object):
 
 
     def compose_theta(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None, nz_full=None):
         """
         Puts together everything in time
         Output array indexes are
@@ -319,7 +319,7 @@ class Output(object):
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
             print(col)
-            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz)
+            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz, nz_full=nz_full)
 
             #------
             # Reduce z coordinate if theres a z_function

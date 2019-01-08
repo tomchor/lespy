@@ -1,18 +1,32 @@
 import numpy as _np
 
-def empty_array(simulation, n_con=False, trimmed=True):
+def empty_array(simulation, n_con=False, trimmed=True, nz_full=None):
     """ Creates an empty array with the shape dictated by simulation """
     sim=simulation
+
+    #----
+    # Write extra two rows in x or not
     if trimmed:
         Nx = sim.nx
     else:
         Nx = sim.domain.ld
+    #----
 
+    #----
+    # Is it the new version of io (Jan 2019) or the version before?
+    # Version before that read until nz_tot, after that only nz_tot-1 should be written
+    if type(nz_full)==type(None):
+        nz_full=sim.domain.nz_tot-1
+    #----
 
+    #----
+    # Create blank array
     if n_con:
-        blank=_np.full((Nx, sim.ny, sim.nz_tot, sim.n_con), _np.nan, dtype=_np.float64)
+        blank=_np.full((Nx, sim.ny, nz_full, sim.n_con), _np.nan, dtype=_np.float64)
     else:
-        blank=_np.full((Nx, sim.ny, sim.nz_tot), _np.nan, dtype=_np.float64)
+        blank=_np.full((Nx, sim.ny, nz_full), _np.nan, dtype=_np.float64)
+    #----
+
     return blank
 
 
