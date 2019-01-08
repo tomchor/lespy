@@ -148,7 +148,7 @@ def get_zi(wT, xy_axis=None, z_axis=0, simulation=None):
     else:
         return simulation.domain.z_w[z_idx]
 
-def w_star(simulation=None, zi=None, wt_s=None, t_init=None):
+def w_star(simulation=None, zi=None, wt_s=None, t_init=None, noreal=False):
     """Calculates the convective scale"""
     import numpy as np
     sim=simulation
@@ -159,9 +159,9 @@ def w_star(simulation=None, zi=None, wt_s=None, t_init=None):
     if type(t_init)==type(None):
         t_init=1/alpha_w
     w_star = (g*wt_s*abs(zi)/t_init)**(1./3.)
-    if np.isreal(w_star):
+    if np.isreal(w_star) or not noreal:
         return w_star
-    else:
+    elif noreal:
         return 0.
 
 

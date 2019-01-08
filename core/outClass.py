@@ -129,19 +129,21 @@ class Output(object):
 
         #---------
         # For too-large sizes, it's better to integrate over z patch-by-patch
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot
         if apply_to_z:
             print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.n_con))
             pcons = np.full((len(cons), sim.nx, sim.ny, sim.n_con), np.nan, dtype=dtype)
             dims = ['itime', 'x', 'y', pcon_index]
         else:
-            print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con))
-            pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan, dtype=dtype)
+            print('Creating array of ',(len(cons), sim.nx, sim.ny, nz, sim.n_con))
+            pcons = np.full((len(cons), sim.nx, sim.ny, nz, sim.n_con), np.nan, dtype=dtype)
             dims = ['itime', 'x', 'y', 'z', pcon_index]
         #---------
 
         for i, fname in enumerate(cons):
             print(i, cons.index[i], fname)
-            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=False)
+            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=False, nz=nz)
 
             #--------
             # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge
@@ -160,7 +162,7 @@ class Output(object):
 
 
     def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None):
         """
         Puts together everything in time
         Output array indexes are
@@ -202,6 +204,8 @@ class Output(object):
         
         #---------
         # Definition of output with time, x, y[ and z]
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot
         if apply_to_z:
             print('Creating 3 arrays of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
             u = np.full((len(bins), Nx, sim.ny), np.nan)
@@ -210,10 +214,10 @@ class Output(object):
             dims_u = ['itime', 'x', 'y']
             dims_w = ['itime', 'x', 'y']
         else: 
-            print('Creating 3 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, sim.nz_tot))
-            u = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
-            v = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
-            w = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
+            print('Creating 3 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, nz))
+            u = np.full((len(bins), Nx, sim.ny, nz), np.nan)
+            v = np.full((len(bins), Nx, sim.ny, nz), np.nan)
+            w = np.full((len(bins), Nx, sim.ny, nz), np.nan)
             dims_u = ['itime', 'x', 'y', 'z_u']
             dims_w = ['itime', 'x', 'y', 'z_w']
         print(' done.')
@@ -224,7 +228,7 @@ class Output(object):
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
             print(col)
-            aux = io.readBinary(col, simulation=sim, as_DA=False)
+            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz)
 
             #------
             # Reduce z coordinate if theres a z_function
@@ -255,7 +259,7 @@ class Output(object):
 
 
     def compose_theta(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None):
         """
         Puts together everything in time
         Output array indexes are
@@ -297,13 +301,15 @@ class Output(object):
         
         #---------
         # Definition of output with time, x, y[ and z]
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot
         if apply_to_z:
             print('Creating 1 array of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
             theta = np.full((len(bins), Nx, sim.ny), np.nan)
             dims_u = ['itime', 'x', 'y']
         else: 
-            print('Creating 1 array of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, sim.nz_tot))
-            theta = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
+            print('Creating 1 array of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, nz))
+            theta = np.full((len(bins), Nx, sim.ny, nz), np.nan)
             dims_u = ['itime', 'x', 'y', 'z_u']
         print(' done.')
         #---------
@@ -313,7 +319,7 @@ class Output(object):
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
             print(col)
-            aux = io.readBinary(col, simulation=sim, as_DA=False)
+            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz)
 
             #------
             # Reduce z coordinate if theres a z_function
