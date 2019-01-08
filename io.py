@@ -44,7 +44,7 @@ def read_aver(fname, simulation, squeeze=True, return_times=False, **kwargs):
 
 
 
-def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon_index='w_r', nz=None):
+def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon_index='w_r', nz=None, nz_full=None):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -89,9 +89,11 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     #---------
     # Useful for later. Might as well do it just once here
     if type(nz)==type(None):
-        nz=domain.nz_tot
+        nz=domain.nz_tot-1
+    if type(nz_full)==type(None):
+        nz_full=domain.nz_tot-1
     
-    kfill = domain.nz_tot - nz
+    kfill = nz_full - nz
     u_nd = domain.nx*domain.ny*nz
     u_fill = domain.nx*domain.ny*kfill
     u_nd2 = domain.ld*domain.ny

@@ -130,7 +130,7 @@ class Output(object):
         #---------
         # For too-large sizes, it's better to integrate over z patch-by-patch
         if type(nz)==type(None):
-            nz=sim.domain.nz_tot
+            nz=sim.domain.nz_tot-1
         if apply_to_z:
             print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.n_con))
             pcons = np.full((len(cons), sim.nx, sim.ny, sim.n_con), np.nan, dtype=dtype)
@@ -205,7 +205,7 @@ class Output(object):
         #---------
         # Definition of output with time, x, y[ and z]
         if type(nz)==type(None):
-            nz=sim.domain.nz_tot
+            nz=sim.domain.nz_tot-1
         if apply_to_z:
             print('Creating 3 arrays of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
             u = np.full((len(bins), Nx, sim.ny), np.nan)
@@ -302,7 +302,7 @@ class Output(object):
         #---------
         # Definition of output with time, x, y[ and z]
         if type(nz)==type(None):
-            nz=sim.domain.nz_tot
+            nz=sim.domain.nz_tot-1
         if apply_to_z:
             print('Creating 1 array of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
             theta = np.full((len(bins), Nx, sim.ny), np.nan)
