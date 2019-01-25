@@ -86,7 +86,7 @@ def nameParser(fname):
 #    ndtime = fname.strip(start).strip('.out')
 #    return int(ndtime)
 
-def add_units(da, x="m", y="m", z="m", time="s", itime="-", ndtime="-"):
+def add_units(da, x="m", y="m", z="m", time="s", itime="-", ndtime="-", w_r="m/s"):
     if "x" in da.dims:
         da.x.attrs["units"]=x
         da.x.attrs["long_name"]="$x$"
@@ -96,6 +96,9 @@ def add_units(da, x="m", y="m", z="m", time="s", itime="-", ndtime="-"):
     if "z" in da.dims:
         da.z.attrs["units"]=z
         da.z.attrs["long_name"]="$z$"
+    if "w_r" in da.dims:
+        da.w_r.attrs["units"]=w_r
+        da.w_r.attrs["long_name"]="$w_r$"
     if "time" in da.dims:
         da.time.attrs["units"]=time
         da.time.attrs["long_name"]="$t$"
