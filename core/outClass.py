@@ -79,7 +79,7 @@ class Output(object):
 
 
     def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, pcon_index="size", nz=None, nz_full=None):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, pcon_index="w_r", nz=None, nz_full=None):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
         creating one big 5-dimensional numpy array in return, with the axes being
@@ -138,7 +138,7 @@ class Output(object):
         else:
             print('Creating array of ',(len(cons), sim.nx, sim.ny, nz, sim.n_con))
             pcons = np.full((len(cons), sim.nx, sim.ny, nz, sim.n_con), np.nan, dtype=dtype)
-            dims = ['itime', 'x', 'y', 'z', pcon_index]
+            dims = ['itime', 'x', 'y', 'z_u', pcon_index]
         #---------
 
         for i, fname in enumerate(cons):
