@@ -113,18 +113,18 @@ class Output(object):
 
         #--------------
         # Only these types of file have pcon output (maybe con_t also)
-        labels = 'pcon_jt'
+        label = 'pcon_jt'
         #--------------
 
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            cons = self.binaries.loc[:,labels].dropna(how='all').loc[times]
+            cons = self.binaries.loc[:,label].dropna(how='all').loc[times]
         else:
             if t_end is None:
-                cons = self.binaries.loc[t_ini:, labels].dropna(how='all')
+                cons = self.binaries.loc[t_ini:, label].dropna(how='all')
             else:
-                cons = self.binaries.loc[t_ini:t_end, labels].dropna(how='all')
+                cons = self.binaries.loc[t_ini:t_end, label].dropna(how='all')
         #--------------
 
         #---------
@@ -194,7 +194,7 @@ class Output(object):
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            bins = self.binaries.loc[:,labels].dropna(how='all').loc[times]
+            bins = self.binaries.loc[:,label].dropna(how='all').loc[times]
         else:
             if t_end is None:
                 bins = self.binaries.loc[t_ini:, label].dropna(how='all')
@@ -291,7 +291,7 @@ class Output(object):
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            bins = self.binaries.loc[:,labels].dropna(how='all').loc[times]
+            bins = self.binaries.loc[:,label].dropna(how='all').loc[times]
         else:
             if t_end is None:
                 bins = self.binaries.loc[t_ini:, label].dropna(how='all')
@@ -371,18 +371,18 @@ class Output(object):
 
         #--------------
         # Only these types of file we deal with here
-        labels = ['uv0_jt']
+        label = ['uv0_jt']
         #--------------
 
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            bins = self.binaries.loc[:, labels].dropna(axis=1, how='all').loc[times]
+            bins = self.binaries.loc[:, label].dropna(axis=1, how='all').loc[times]
         else:
             if t_end is None:
-                bins = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+                bins = self.binaries.loc[t_ini:, label].dropna(axis=1, how='all')
             else:
-                bins = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+                bins = self.binaries.loc[t_ini:t_end, label].dropna(axis=1, how='all')
         #--------------
 
         #---------
