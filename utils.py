@@ -1,3 +1,5 @@
+import numpy as np
+
 def paramParser(nmlpath):
     """Function that parses parameters from param.nml namelist files
     """
@@ -116,7 +118,6 @@ def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
     """
     Auxiliar function to get plitting limits for plane and pcon_2D_animation
     """
-    import numpy as np
 
     #-------
     nseps = nbins+1
@@ -275,6 +276,8 @@ def get_DA(array, simulation=None, dims=None, time=False, itime=None, **kwargs):
             coords['size'] = sim.droplet_sizes
         elif dim=='w_r':
             coords['w_r'] = sim.vel_settling
+        elif dim=="index":
+            coords["index"] = np.arange(0,sim.n_con)
         else:
             coords[dim] = sim.domain.__dict__[dim]
     dims = [ 'z' if dim.startswith('z') else dim for dim in dims ]
