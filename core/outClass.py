@@ -119,7 +119,7 @@ class Output(object):
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            cons = self.binaries.loc[times, labels].dropna(how='all')
+            cons = self.binaries.loc[:,labels].dropna(how='all').loc[times]
         else:
             if t_end is None:
                 cons = self.binaries.loc[t_ini:, labels].dropna(how='all')
@@ -194,7 +194,7 @@ class Output(object):
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            bins = self.binaries.loc[times, label].dropna(how='all')
+            bins = self.binaries.loc[:,labels].dropna(how='all').loc[times]
         else:
             if t_end is None:
                 bins = self.binaries.loc[t_ini:, label].dropna(how='all')
@@ -291,7 +291,7 @@ class Output(object):
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            bins = self.binaries.loc[times, label].dropna(how='all')
+            bins = self.binaries.loc[:,labels].dropna(how='all').loc[times]
         else:
             if t_end is None:
                 bins = self.binaries.loc[t_ini:, label].dropna(how='all')
@@ -377,7 +377,7 @@ class Output(object):
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            bins = self.binaries.loc[times, labels].dropna(axis=1, how='all')
+            bins = self.binaries.loc[:, labels].dropna(axis=1, how='all').loc[times]
         else:
             if t_end is None:
                 bins = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
