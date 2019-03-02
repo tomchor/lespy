@@ -1,32 +1,18 @@
 import numpy as _np
 
-def empty_array(simulation, n_con=False, trimmed=True, nz_full=None):
+def empty_array(simulation, n_con=False, trimmed=True):
     """ Creates an empty array with the shape dictated by simulation """
     sim=simulation
-
-    #----
-    # Write extra two rows in x or not
     if trimmed:
         Nx = sim.nx
     else:
         Nx = sim.domain.ld
-    #----
 
-    #----
-    # Is it the new version of io (Jan 2019) or the version before?
-    # Version before that read until nz_tot, after that only nz_tot-1 should be written
-    if type(nz_full)==type(None):
-        nz_full=sim.domain.nz_tot-1
-    #----
 
-    #----
-    # Create blank array
     if n_con:
-        blank=_np.full((Nx, sim.ny, nz_full, sim.n_con), _np.nan, dtype=_np.float64)
+        blank=_np.full((Nx, sim.ny, sim.nz_tot, sim.n_con), _np.nan, dtype=_np.float64)
     else:
-        blank=_np.full((Nx, sim.ny, nz_full), _np.nan, dtype=_np.float64)
-    #----
-
+        blank=_np.full((Nx, sim.ny, sim.nz_tot), _np.nan, dtype=_np.float64)
     return blank
 
 
@@ -58,7 +44,7 @@ def read_aver(fname, simulation, squeeze=True, return_times=False, **kwargs):
 
 
 
-def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon_index='w_r', nz=None, nz_full=None):
+def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon_index='size', kmax=None):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -102,13 +88,11 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
 
     #---------
     # Useful for later. Might as well do it just once here
-    if type(nz)==type(None):
-        nz=domain.nz_tot-1
-    if type(nz_full)==type(None):
-        nz_full=domain.nz_tot-1
+    if type(kmax)==type(None):
+        kmax=domain.nz_tot
     
-    kfill = nz_full - nz
-    u_nd = domain.nx*domain.ny*nz
+    kfill = domain.nz_tot - kmax
+    u_nd = domain.nx*domain.ny*kmax
     u_fill = domain.nx*domain.ny*kfill
     u_nd2 = domain.ld*domain.ny
     #---------
@@ -137,12 +121,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
         if n_con==None:
             n_con = sim.n_con
         p_nd = u_nd*n_con
-        pcon = []
-        for i in range(n_con):
-            bfile.seek(8*i*(u_nd+u_fill))
-            pcon.append(np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F'))
-        pcon = np.stack(pcon, axis=-1)
-        #pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.nx, domain.ny, domain.nz_tot, n_con), order='F')
+        pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.nx, domain.ny, domain.nz_tot, n_con), order='F')
         pcon *= sim.pcon_scale
         if as_DA:
             pcon=sim.DataArray(pcon, dims=['x', 'y', 'z_u', pcon_index])
@@ -153,7 +132,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     #---------
     # Straightforward
     elif path.basename(fname).startswith('theta_jt'):
-        T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
+        T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, kmax), order='F')
         T = 2.*sim.t_init - T*sim.t_scale
         if as_DA:
             T=sim.DataArray(T, dims=['x', 'y', 'z_u'])
@@ -164,11 +143,11 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     #---------
     # Straightforward
     elif path.basename(fname).startswith('uvw_jt'):
-        u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
+        u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, kmax), order='F')
         bfile.seek(8*(u_nd+u_fill))
-        v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
+        v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, kmax), order='F')
         bfile.seek(16*(u_nd+u_fill))
-        w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
+        w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, kmax), order='F')
         u = u*sim.u_scale
         v = v*sim.u_scale
         w =-w*sim.u_scale

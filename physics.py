@@ -47,7 +47,8 @@ def termVelocity(d, mu=mu_w, rho=rho_w, delta_rho=(rho_w-rho_oil)):
     """
     import numpy as np
     d=np.asarray(d)
-    conds = [ d<=1e-3, (1e-3<d)*(d<15.e-3) ]
+    tlim=5e-3
+    conds = [ d<=tlim, (tlim<d)*(d<15.e-3) ]
     funcs = []
     funcs.append( lambda d: get_R(d, mu=mu, rho=rho, delta_rho=delta_rho)*mu/(rho*d))
     funcs.append( None )
@@ -59,7 +60,7 @@ def get_dropletSize(wr, mu=mu_w, rho=rho_w, delta_rho=(rho_w-rho_oil), nominal=F
     Calculates the droplet size in micrometers for a given set of terminal velocities
     """
     import numpy as np
-    D=np.linspace(1e-8, 1e-3, 500)
+    D=np.linspace(1e-10, 1e-2, 1000)
     Wr = termVelocity(D, mu=mu, rho=rho, delta_rho=delta_rho)
     diam = np.interp(wr, Wr, D)
     if nominal:
@@ -147,17 +148,21 @@ def get_zi(wT, xy_axis=None, z_axis=0, simulation=None):
     else:
         return simulation.domain.z_w[z_idx]
 
-def w_star(simulation=None, zi=None, wt_s=None, t_init=None):
+def w_star(simulation=None, zi=None, wt_s=None, t_init=None, noreal=False):
     """Calculates the convective scale"""
+    import numpy as np
     sim=simulation
     if type(zi)==type(None):
-        zi=sim.inversion_depth
+        zi=-sim.inversion_depth
     if type(wt_s)==type(None):
         wt_s=sim.wt_s
     if type(t_init)==type(None):
         t_init=1/alpha_w
-    w_star = (g*wt_s*zi/t_init)**(1./3.)
-    return w_star
+    w_star = (g*wt_s*abs(zi)/t_init)**(1./3.)
+    if np.isreal(w_star) or not noreal:
+        return w_star
+    elif noreal:
+        return 0.
 
 
 

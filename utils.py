@@ -1,3 +1,5 @@
+import numpy as np
+
 def paramParser(nmlpath):
     """Function that parses parameters from param.nml namelist files
     """
@@ -86,12 +88,36 @@ def nameParser(fname):
 #    ndtime = fname.strip(start).strip('.out')
 #    return int(ndtime)
 
+def add_units(da, x="m", y="m", z="m", time="s", itime="-", ndtime="-", w_r="m/s"):
+    if "x" in da.dims:
+        da.x.attrs["units"]=x
+        da.x.attrs["long_name"]="$x$"
+    if "y" in da.dims:
+        da.y.attrs["units"]=y
+        da.y.attrs["long_name"]="$y$"
+    if "z" in da.dims:
+        da.z.attrs["units"]=z
+        da.z.attrs["long_name"]="$z$"
+    if "w_r" in da.dims:
+        da.w_r.attrs["units"]=w_r
+        da.w_r.attrs["long_name"]="$w_r$"
+    if "time" in da.dims:
+        da.time.attrs["units"]=time
+        da.time.attrs["long_name"]="$t$"
+    if "itime" in da.dims:
+        da.itime.attrs["units"]=itime
+        da.itime.attrs["long_name"]="Model time step"
+    if "ndtime" in da.dims:
+        da.ndtime.attrs["units"]=ndtime
+        da.ndtime.attrs["long_name"]="Normalized time"
+    return da
+
+
 
 def get_ticks(array, levels=None, logscale=None, clim=[], nbins=6):
     """
     Auxiliar function to get plitting limits for plane and pcon_2D_animation
     """
-    import numpy as np
 
     #-------
     nseps = nbins+1
@@ -216,7 +242,7 @@ def np2vtr(arrays, outname):
     return
 
 
-def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
+def get_DA(array, simulation=None, dims=None, time=False, itime=None, **kwargs):
     """
     Gets a dataarray from pcons
     
@@ -233,17 +259,25 @@ def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
             coords=dict(time=time)
         else:
             print('Provide time kwarg')
+    if 'itime' in dims:
+        if type(itime)!=type(None):
+            coords=dict(itime=itime)
+        else:
+            print('Provide time/itime kwarg')
     else:
         coords=dict()
 
     for i, dim in enumerate(dims):
         if dim=='time': continue
+        if dim=='itime': continue
         if dim.startswith('z'):
             coords['z'] = sim.domain.__dict__[dim].take(_np.arange(0,array.shape[i]), axis=0)
         elif dim=='size':
             coords['size'] = sim.droplet_sizes
         elif dim=='w_r':
             coords['w_r'] = sim.vel_settling
+        elif dim=="index":
+            coords["index"] = np.arange(0,sim.n_con)
         else:
             coords[dim] = sim.domain.__dict__[dim]
     dims = [ 'z' if dim.startswith('z') else dim for dim in dims ]
@@ -488,6 +522,7 @@ def detect_local_minima(arr):
     eroded_background = morphology.binary_erosion(background, structure=neighborhood, border_value=1)
     detected_minima = local_min - eroded_background
     return np.where(detected_minima)  
+
 
 
 

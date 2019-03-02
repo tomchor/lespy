@@ -79,7 +79,7 @@ class Output(object):
 
 
     def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, pcon_index="size"):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, pcon_index="w_r", nz=None, nz_full=None):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
         creating one big 5-dimensional numpy array in return, with the axes being
@@ -113,35 +113,37 @@ class Output(object):
 
         #--------------
         # Only these types of file have pcon output (maybe con_t also)
-        labels = 'pcon_jt'
+        label = 'pcon_jt'
         #--------------
 
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            cons = self.binaries.loc[times, labels].dropna(how='all')
+            cons = self.binaries.loc[:,label].dropna(how='all').loc[times]
         else:
             if t_end is None:
-                cons = self.binaries.loc[t_ini:, labels].dropna(how='all')
+                cons = self.binaries.loc[t_ini:, label].dropna(how='all')
             else:
-                cons = self.binaries.loc[t_ini:t_end, labels].dropna(how='all')
+                cons = self.binaries.loc[t_ini:t_end, label].dropna(how='all')
         #--------------
 
         #---------
         # For too-large sizes, it's better to integrate over z patch-by-patch
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot-1
         if apply_to_z:
             print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.n_con))
             pcons = np.full((len(cons), sim.nx, sim.ny, sim.n_con), np.nan, dtype=dtype)
-            dims = ['time', 'x', 'y', pcon_index]
+            dims = ['itime', 'x', 'y', pcon_index]
         else:
-            print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con))
-            pcons = np.full((len(cons), sim.nx, sim.ny, sim.nz_tot, sim.n_con), np.nan, dtype=dtype)
-            dims = ['time', 'x', 'y', 'z', pcon_index]
+            print('Creating array of ',(len(cons), sim.nx, sim.ny, nz, sim.n_con))
+            pcons = np.full((len(cons), sim.nx, sim.ny, nz, sim.n_con), np.nan, dtype=dtype)
+            dims = ['itime', 'x', 'y', 'z_u', pcon_index]
         #---------
 
         for i, fname in enumerate(cons):
             print(i, cons.index[i], fname)
-            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=False)
+            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=False, nz=nz, nz_full=nz_full)
 
             #--------
             # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge
@@ -153,14 +155,14 @@ class Output(object):
 
 
         if as_dataarray:
-            output = utils.get_DA(pcons, simulation=sim, dims=dims, time=cons.index.tolist())
+            output = utils.get_DA(pcons, simulation=sim, dims=dims, itime=cons.index.tolist())
         else:
             output = pcons
         return output
 
 
     def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None, nz_full=None):
         """
         Puts together everything in time
         Output array indexes are
@@ -192,7 +194,7 @@ class Output(object):
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            bins = self.binaries.loc[times, label].dropna(how='all')
+            bins = self.binaries.loc[:,label].dropna(how='all').loc[times]
         else:
             if t_end is None:
                 bins = self.binaries.loc[t_ini:, label].dropna(how='all')
@@ -202,20 +204,22 @@ class Output(object):
         
         #---------
         # Definition of output with time, x, y[ and z]
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot-1
         if apply_to_z:
             print('Creating 3 arrays of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
             u = np.full((len(bins), Nx, sim.ny), np.nan)
             v = np.full((len(bins), Nx, sim.ny), np.nan)
             w = np.full((len(bins), Nx, sim.ny), np.nan)
-            dims_u = ['time', 'x', 'y']
-            dims_w = ['time', 'x', 'y']
+            dims_u = ['itime', 'x', 'y']
+            dims_w = ['itime', 'x', 'y']
         else: 
-            print('Creating 3 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, sim.nz_tot))
-            u = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
-            v = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
-            w = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
-            dims_u = ['time', 'x', 'y', 'z_u']
-            dims_w = ['time', 'x', 'y', 'z_w']
+            print('Creating 3 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, nz))
+            u = np.full((len(bins), Nx, sim.ny, nz), np.nan)
+            v = np.full((len(bins), Nx, sim.ny, nz), np.nan)
+            w = np.full((len(bins), Nx, sim.ny, nz), np.nan)
+            dims_u = ['itime', 'x', 'y', 'z_u']
+            dims_w = ['itime', 'x', 'y', 'z_w']
         print(' done.')
         #---------
 
@@ -224,7 +228,7 @@ class Output(object):
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
             print(col)
-            aux = io.readBinary(col, simulation=sim, as_DA=False)
+            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz, nz_full=nz_full)
 
             #------
             # Reduce z coordinate if theres a z_function
@@ -242,9 +246,9 @@ class Output(object):
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
-            out = [ utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()),
-                utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()),
-                utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()), ]
+            out = [ utils.get_DA(u, simulation=sim, dims=dims_u, itime=bins.index.tolist()),
+                utils.get_DA(v, simulation=sim, dims=dims_u, itime=bins.index.tolist()),
+                utils.get_DA(w, simulation=sim, dims=dims_w, itime=bins.index.tolist()), ]
 
             #u,v,w = utils.get_dataarray([u, v, w], simulation=sim, with_time=bins.index.tolist())
         else:
@@ -255,7 +259,7 @@ class Output(object):
 
 
     def compose_theta(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None):
+            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None, nz_full=None):
         """
         Puts together everything in time
         Output array indexes are
@@ -280,14 +284,14 @@ class Output(object):
 
         #--------------
         # Only these types of file we deal with here
-        label = 'uvw_jt'
+        label = 'theta_jt'
         Nx=sim.domain.nx
         #--------------
 
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            bins = self.binaries.loc[times, label].dropna(how='all')
+            bins = self.binaries.loc[:,label].dropna(how='all').loc[times]
         else:
             if t_end is None:
                 bins = self.binaries.loc[t_ini:, label].dropna(how='all')
@@ -297,20 +301,16 @@ class Output(object):
         
         #---------
         # Definition of output with time, x, y[ and z]
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot-1
         if apply_to_z:
-            print('Creating 3 arrays of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
-            u = np.full((len(bins), Nx, sim.ny), np.nan)
-            v = np.full((len(bins), Nx, sim.ny), np.nan)
-            w = np.full((len(bins), Nx, sim.ny), np.nan)
-            dims_u = ['time', 'x', 'y']
-            dims_w = ['time', 'x', 'y']
+            print('Creating 1 array of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
+            theta = np.full((len(bins), Nx, sim.ny), np.nan)
+            dims_u = ['itime', 'x', 'y']
         else: 
-            print('Creating 3 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, sim.nz_tot))
-            u = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
-            v = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
-            w = np.full((len(bins), Nx, sim.ny, sim.nz_tot), np.nan)
-            dims_u = ['time', 'x', 'y', 'z_u']
-            dims_w = ['time', 'x', 'y', 'z_w']
+            print('Creating 1 array of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, nz))
+            theta = np.full((len(bins), Nx, sim.ny, nz), np.nan)
+            dims_u = ['itime', 'x', 'y', 'z_u']
         print(' done.')
         #---------
 
@@ -319,7 +319,7 @@ class Output(object):
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
             print(col)
-            aux = io.readBinary(col, simulation=sim, as_DA=False)
+            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz, nz_full=nz_full)
 
             #------
             # Reduce z coordinate if theres a z_function
@@ -327,23 +327,17 @@ class Output(object):
                 aux = [ z_function(el) for el in aux ]
             #------
 
-            ui,vi,wi = aux
-            u[i] = ui
-            v[i] = vi
-            w[i] = wi
+            theta[i] = aux
             #---------
         #---------
 
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
-            out = [ utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()),
-                utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()),
-                utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()), ]
+            out = utils.get_DA(theta, simulation=sim, dims=dims_u, itime=bins.index.tolist())
 
-            #u,v,w = utils.get_dataarray([u, v, w], simulation=sim, with_time=bins.index.tolist())
         else:
-            out = [u, v, w]
+            out = theta
         #---------
 
         return out
@@ -377,18 +371,18 @@ class Output(object):
 
         #--------------
         # Only these types of file we deal with here
-        labels = ['uv0_jt']
+        label = ['uv0_jt']
         #--------------
 
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            bins = self.binaries.loc[times, labels].dropna(axis=1, how='all')
+            bins = self.binaries.loc[:, label].dropna(axis=1, how='all').loc[times]
         else:
             if t_end is None:
-                bins = self.binaries.loc[t_ini:, labels].dropna(axis=1, how='all')
+                bins = self.binaries.loc[t_ini:, label].dropna(axis=1, how='all')
             else:
-                bins = self.binaries.loc[t_ini:t_end, labels].dropna(axis=1, how='all')
+                bins = self.binaries.loc[t_ini:t_end, label].dropna(axis=1, how='all')
         #--------------
 
         #---------
@@ -427,8 +421,8 @@ class Output(object):
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
-            u0 = utils.get_DA(u0, simulation=sim, dims=['time', 'x', 'y'], time=bins.index.tolist())
-            v0 = utils.get_DA(v0, simulation=sim, dims=['time', 'x', 'y'], time=bins.index.tolist())
+            u0 = utils.get_DA(u0, simulation=sim, dims=['itime', 'x', 'y'], itime=bins.index.tolist())
+            v0 = utils.get_DA(v0, simulation=sim, dims=['itime', 'x', 'y'], itime=bins.index.tolist())
         #---------
 
         return u0, v0

@@ -32,6 +32,10 @@ class Simulation(object):
 
         self.w_star = self.get_w_star()
         self.vel_settling=np.array(self.vel_settling)
+        try:
+            self.relax_freq=np.array(self.relax_freq)
+        except:
+            pass
         self.droplet_sizes=physics.get_dropletSize(self.vel_settling, nominal=True, nowarning=True).astype(int)
         if type(self.droplet_sizes)!=np.ndarray:
             self.droplet_sizes=np.array([self.droplet_sizes])
