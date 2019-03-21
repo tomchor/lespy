@@ -155,10 +155,12 @@ class Output(object):
 
 
         if as_dataarray:
-            output = utils.get_DA(pcons, simulation=sim, dims=dims, itime=cons.index.tolist())
+            from .utils import add_units
+            out = utils.get_DA(pcons, simulation=sim, dims=dims, itime=cons.index.tolist())
+            out[i] = add_units(out[i])
         else:
-            output = pcons
-        return output
+            out = pcons
+        return out
 
 
     def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
@@ -246,11 +248,13 @@ class Output(object):
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
+            from ..utils import add_units
             out = [ utils.get_DA(u, simulation=sim, dims=dims_u, itime=bins.index.tolist()),
                 utils.get_DA(v, simulation=sim, dims=dims_u, itime=bins.index.tolist()),
                 utils.get_DA(w, simulation=sim, dims=dims_w, itime=bins.index.tolist()), ]
 
-            #u,v,w = utils.get_dataarray([u, v, w], simulation=sim, with_time=bins.index.tolist())
+            for i in range(len(out)):
+                out[i] = add_units(out[i])
         else:
             out = [u, v, w]
         #---------
@@ -334,7 +338,9 @@ class Output(object):
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
+            from .utils import add_units
             out = utils.get_DA(theta, simulation=sim, dims=dims_u, itime=bins.index.tolist())
+            out = add_units(out)
 
         else:
             out = theta

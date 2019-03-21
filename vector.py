@@ -55,10 +55,15 @@ def velgrad_tensor2d(u_vec, simulation=None, trim=True, w_int=None):
 
     return R
 
-def velgrad_tensor(u_vec, simulation=None, trim=True, w_int=None):
+def velgrad_tensor(u_vec, simulation=None, trim=True, w_int=None, as_DA=True):
     """
     u_vec is a list with [u, v, w]
     u, v, and w should be xarrays
+
+    trim:
+        w is in different nodes, so the w components are longer. This gets rids of that
+    w_int:
+        w interpolated to u-nodes
     """
     from . import numerical
     sim=simulation
@@ -87,6 +92,15 @@ def velgrad_tensor(u_vec, simulation=None, trim=True, w_int=None):
         for i in range(3):
             for j in range(3):
                 R[i,j] = R[i,j].isel(z=slice(None,zlen-1))
+
+    if as_DA:
+        import xarray as xr
+        Dir = xr.DataArray(["x", "y", "z"], dims=["dir"])
+        Dir.name="dir"
+        Comp = xr.DataArray(["u", "v", "w"], dims=["comp"])
+        Comp.name="comp"
+        R = xr.concat([ xr.concat(col, dim=Dir) for col in R ], dim=Comp )
+
     return R
 
 
