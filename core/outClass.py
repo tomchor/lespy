@@ -155,7 +155,7 @@ class Output(object):
 
 
         if as_dataarray:
-            from .utils import add_units
+            from ..utils import add_units
             out = utils.get_DA(pcons, simulation=sim, dims=dims, itime=cons.index.tolist())
             out[i] = add_units(out[i])
         else:
@@ -338,7 +338,7 @@ class Output(object):
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
-            from .utils import add_units
+            from ..utils import add_units
             out = utils.get_DA(theta, simulation=sim, dims=dims_u, itime=bins.index.tolist())
             out = add_units(out)
 
