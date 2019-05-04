@@ -78,8 +78,10 @@ class Output(object):
         return
 
 
-    def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, pcon_index="w_r", nz=None, nz_full=None):
+    def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True, 
+                     apply_to_z=False, z_function=lambda x: x[:,:,0], 
+                     chunksize=None, pcon_index="w_r", 
+                     dtype=None, nz=None, nz_full=None):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
         creating one big 5-dimensional numpy array in return, with the axes being
@@ -157,14 +159,18 @@ class Output(object):
         if as_dataarray:
             from ..utils import add_units
             out = utils.get_DA(pcons, simulation=sim, dims=dims, itime=cons.index.tolist())
-            out[i] = add_units(out[i])
+            out = add_units(out)
+            if chunksize is not None:
+                out = out.chunk(dict(itime=chunksize))
         else:
             out = pcons
         return out
 
 
-    def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None, nz_full=None):
+    def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True, 
+                    apply_to_z=False, z_function=lambda x: x[:,:,0], 
+                    chunksize=None,
+                    dtype=None, nz=None, nz_full=None):
         """
         Puts together everything in time
         Output array indexes are
@@ -249,12 +255,13 @@ class Output(object):
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
             from ..utils import add_units
-            out = [ utils.get_DA(u, simulation=sim, dims=dims_u, itime=bins.index.tolist()),
-                utils.get_DA(v, simulation=sim, dims=dims_u, itime=bins.index.tolist()),
-                utils.get_DA(w, simulation=sim, dims=dims_w, itime=bins.index.tolist()), ]
-
+            out = [utils.get_DA(u, simulation=sim, dims=dims_u, itime=bins.index.tolist()), 
+                   utils.get_DA(v, simulation=sim, dims=dims_u, itime=bins.index.tolist()), 
+                   utils.get_DA(w, simulation=sim, dims=dims_w, itime=bins.index.tolist()), ]
             for i in range(len(out)):
                 out[i] = add_units(out[i])
+                if chunksize is not None:
+                    out[i] = out[i].chunk(dict(itime=chunksize))
         else:
             out = [u, v, w]
         #---------
@@ -262,8 +269,10 @@ class Output(object):
         return out
 
 
-    def compose_theta(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True,
-            apply_to_z=False, z_function=lambda x: x[:,:,0], dtype=None, nz=None, nz_full=None):
+    def compose_theta(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True, 
+                      apply_to_z=False, z_function=lambda x: x[:,:,0], 
+                      chunksize=None,
+                      dtype=None, nz=None, nz_full=None):
         """
         Puts together everything in time
         Output array indexes are
@@ -341,6 +350,8 @@ class Output(object):
             from ..utils import add_units
             out = utils.get_DA(theta, simulation=sim, dims=dims_u, itime=bins.index.tolist())
             out = add_units(out)
+            if chunksize is not None:
+                out = out.chunk(dict(itime=chunksize))
 
         else:
             out = theta
