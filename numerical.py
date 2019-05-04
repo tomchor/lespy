@@ -21,7 +21,7 @@ def integrate(arr, axis=0, dx=1., chunks=1):
         return integ
 
 
-def diff_fft_xr(da, n=1, dim=None, shift=False, reshape=False, **kwargs):
+def diff_fft_xr(da, n=1, dim=None, shift=False, real=True, reshape=False, **kwargs):
     """
     Calculate derivative of a DataArray using fft
 
@@ -37,15 +37,36 @@ def diff_fft_xr(da, n=1, dim=None, shift=False, reshape=False, **kwargs):
     import xrft
     import xarray as xr
 
-    wave = xrft.dft(da, dim=dim, shift=shift, **kwargs)
-    freq = wave.coords['freq_'+dim]
+    kdim = 'freq_'+dim
 
-    if reshape: # This reshape is generally not necessary
-        newshape = tuple( 1 if ax!=da.dims.index(dim) else -1 for ax in range(len(da.shape)) )
-        freq = freq.values.reshape(newshape)
+    #----
+    # Perform forward DFT
+    if real:
+        wave = xrft.dft(da, dim=dim, shift=shift, real=dim, **kwargs)
+    else:
+        wave = xrft.dft(da, dim=dim, shift=shift, real=None, **kwargs)
+    freq = wave.coords[kdim]
+    #----
 
+    #----
+    # Multiply amplitudes by 2πk
     ikF = (pow(1.j*2.*np.pi, n)*wave*freq)
-    return xr.DataArray(np.fft.ifft(ikF, axis=da.dims.index(dim)).real, coords=da.coords, dims=da.dims)
+    #----
+
+    #----
+    # Perform inverse DFT
+    if real:
+        deriv = np.fft.irfft(ikF, axis=wave.dims.index(kdim))
+    else:
+        deriv = np.fft.ifft(ikF, axis=wave.dims.index(kdim)).real
+    #----
+
+    #----
+    # Repackage into dataarray
+    newdims = [ dim if dim!=kdim else kdim.replace("freq_", "") for dim in wave.dims ]
+    deriv = xr.DataArray(deriv, coords=da.coords, dims=newdims)
+    return deriv.transpose(*da.dims)
+    #----
 
 
 
