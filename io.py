@@ -40,7 +40,7 @@ def write_to_les(array, fname, simulation=None, **kwargs):
     return
 
 
-def read_aver(fname, simulation, squeeze=True, return_times=False, **kwargs):
+def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kwargs):
     """Reads aver_* files from LES"""
     sim=simulation
     aver=_np.loadtxt(fname, **kwargs)
