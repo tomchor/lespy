@@ -278,6 +278,8 @@ def get_DA(array, simulation=None, dims=None, time=False, itime=None, **kwargs):
             coords['w_r'] = sim.vel_settling
         elif dim=="index":
             coords["index"] = np.arange(0,sim.n_con)
+        elif dim=="f_r":
+            coords["f_r"] = sim.relax_freq
         else:
             coords[dim] = sim.domain.__dict__[dim]
     dims = [ 'z' if dim.startswith('z') else dim for dim in dims ]

@@ -40,7 +40,7 @@ def write_to_les(array, fname, simulation=None, **kwargs):
     return
 
 
-def read_aver(fname, simulation, squeeze=True, return_times=False, **kwargs):
+def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kwargs):
     """Reads aver_* files from LES"""
     sim=simulation
     aver=_np.loadtxt(fname, **kwargs)
@@ -152,7 +152,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     
     #---------
     # Straightforward
-    elif path.basename(fname).startswith('theta_jt'):
+    elif path.basename(fname).startswith('theta_jt') or path.basename(fname).startswith('temp_tt'):
         T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
         T = 2.*sim.t_init - T*sim.t_scale
         if as_DA:
@@ -163,7 +163,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
 
     #---------
     # Straightforward
-    elif path.basename(fname).startswith('uvw_jt'):
+    elif path.basename(fname).startswith('uvw_jt') or path.basename(fname).startswith('vel_tt'):
         u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
         bfile.seek(8*(u_nd+u_fill))
         v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
@@ -196,8 +196,8 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     #---------
     # Add units as attributes
     if as_DA:
+        from .utils import add_units
         for i in range(len(outlist)):
-            from .utils import add_units
             outlist[i] = add_units(outlist[i])
     if len(outlist)==1:
         outlist=outlist[0]

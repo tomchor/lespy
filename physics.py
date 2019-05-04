@@ -156,13 +156,16 @@ def w_star(simulation=None, zi=None, wt_s=None, t_init=None, noreal=False):
         zi=-sim.inversion_depth
     if type(wt_s)==type(None):
         wt_s=sim.wt_s
-    if type(t_init)==type(None):
-        t_init=1/alpha_w
-    w_star = (g*wt_s*abs(zi)/t_init)**(1./3.)
-    if np.isreal(w_star) or not noreal:
-        return w_star
-    elif noreal:
-        return 0.
+    if sim.ocean_flag:
+        alpha = alpha_w
+    else:
+        if type(t_init)==type(None):
+            alpha = 1/sim.t_init
+        else:
+            alpha = 1/t_init
+        
+    w_star = (alpha*g*wt_s*abs(zi))**(1./3.)
+    return w_star
 
 
 
