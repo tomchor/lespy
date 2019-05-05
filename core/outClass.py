@@ -158,7 +158,7 @@ class Output(object):
 
         if as_dataarray:
             from ..utils import add_units
-            out = utils.get_DA(pcons, simulation=sim, dims=dims, itime=cons.index.tolist())
+            out = utils.get_DA(pcons, simulation=sim, dims=dims, time=cons.index.tolist())
             out = add_units(out)
             if chunksize is not None:
                 out = out.chunk(dict(itime=chunksize))
@@ -255,9 +255,9 @@ class Output(object):
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
             from ..utils import add_units
-            out = [utils.get_DA(u, simulation=sim, dims=dims_u, itime=bins.index.tolist()), 
-                   utils.get_DA(v, simulation=sim, dims=dims_u, itime=bins.index.tolist()), 
-                   utils.get_DA(w, simulation=sim, dims=dims_w, itime=bins.index.tolist()), ]
+            out = [utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
+                   utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
+                   utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()), ]
             for i in range(len(out)):
                 out[i] = add_units(out[i])
                 if chunksize is not None:
@@ -348,7 +348,7 @@ class Output(object):
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         if as_dataarray:
             from ..utils import add_units
-            out = utils.get_DA(theta, simulation=sim, dims=dims_u, itime=bins.index.tolist())
+            out = utils.get_DA(theta, simulation=sim, dims=dims_u, time=bins.index.tolist())
             out = add_units(out)
             if chunksize is not None:
                 out = out.chunk(dict(itime=chunksize))
