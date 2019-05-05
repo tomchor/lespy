@@ -41,7 +41,9 @@ def write_to_les(array, fname, simulation=None, **kwargs):
 
 
 def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kwargs):
-    """Reads aver_* files from LES"""
+    """
+    Reads aver_* files from LES
+    """
     sim=simulation
     aver=_np.loadtxt(fname, **kwargs)
     if 'pcon' in fname.lower():
@@ -50,6 +52,10 @@ def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kw
     aver = aver[:,1:]
     if squeeze:
         aver = _np.squeeze(aver)
+
+    if dims:
+        from . import utils
+        aver = utils.get_DA(aver, simulation=sim, dims=dims, time=ndtimes)
 
     if return_times:
         return ndtimes, aver

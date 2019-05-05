@@ -242,7 +242,7 @@ def np2vtr(arrays, outname):
     return
 
 
-def get_DA(array, simulation=None, dims=None, time=False, itime=None, **kwargs):
+def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
     """
     Gets a dataarray from pcons
     
@@ -259,17 +259,23 @@ def get_DA(array, simulation=None, dims=None, time=False, itime=None, **kwargs):
             coords=dict(time=time)
         else:
             print('Provide time kwarg')
-    if 'itime' in dims:
-        if type(itime)!=type(None):
-            coords=dict(itime=itime)
+    elif 'itime' in dims:
+        if type(time)!=type(None):
+            coords=dict(itime=time)
         else:
-            print('Provide time/itime kwarg')
+            print('Provide time/time kwarg')
+    elif 'ndtime' in dims:
+        if type(time)!=type(None):
+            coords=dict(ndtime=time)
+        else:
+            print('Provide time/time kwarg')
     else:
         coords=dict()
 
     for i, dim in enumerate(dims):
         if dim=='time': continue
         if dim=='itime': continue
+        if dim=='ndtime': continue
         if dim.startswith('z'):
             coords['z'] = sim.domain.__dict__[dim].take(_np.arange(0,array.shape[i]), axis=0)
         elif dim=='size':

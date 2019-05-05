@@ -139,7 +139,7 @@ def get_QD(uv, verbose=True):
 
 
 def gaussian_conv(da, delta=1, dims=["x", "y"], truncate=4, how="manual", 
-        full_output=False, **kwargs):
+                  full_output=False, **kwargs):
     """ 
     Applies convolution with gaussian kernel 
 
@@ -171,7 +171,7 @@ def gaussian_conv(da, delta=1, dims=["x", "y"], truncate=4, how="manual",
             G /= G.sum()
             if delta==0: G=_np.array([1,])
 
-            da = _xr.apply_ufunc(convolve1d, da, G, kwargs=dict(axis=axis, mode=bc, cval=0))
+            da = _xr.apply_ufunc(convolve1d, da, G, kwargs=dict(axis=axis, mode=bc, cval=0), **kwargs)
 
         elif how=="auto":
             da = _xr.apply_ufunc(gaussian_filter1d, da, kwargs=dict(axis=axis, mode=bc, cval=0, sigma=delta/ds, truncate=truncate), **kwargs)
