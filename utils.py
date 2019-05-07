@@ -296,79 +296,6 @@ def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
 
 
 
-def get_dataarray(pcons, simulation=None, with_time=False):
-    """
-    Gets a dataarray from pcons
-    
-    pcons: list or np.array
-        If it's a list the domains can be different
-    with_time: list, array
-        list that will serve as the time index
-    """
-    from collections import OrderedDict as ODic
-    sim = simulation
-
-    if with_time:
-        time=1
-    else:
-        time=0
-
-    #--------
-    # This is just to find out the dimensions
-    if isinstance(pcons, list):
-        pcon = pcons[0]
-    else:
-        pcon = pcons
-
-    if with_time:
-        coords = ODic({'time':with_time})
-    else:
-        coords = ODic({})
-    #--------
-
-    #--------
-    # If there is more than one dataset (list), each can have a different domain
-    if isinstance(pcons, list):
-        pcons_da = []
-        for pcon in pcons:
-            x,y,z = sim.domain.makeAxes(pcon[0])
-            if (len(pcon.shape)-time) >= 1:
-                coords.update({'x':x})
-            if (len(pcon.shape)-time) >= 2:
-                coords.update({'y':y})
-            if (len(pcon.shape)-time) == 3:
-                coords.update({'z':z})
-            pcons_da.append(sim.DataArray(pcon, coords=coords))
-        del pcons, pcon
-        return pcons_da
-    #--------
-
-    #----------
-    # Else, we do it just for one
-    else:
-        print(pcons.shape)
-        if (len(pcon.shape)-time)>=1:
-            coords.update({'x':sim.domain.x})
-        if (len(pcon.shape)-time) >= 2:
-            coords.update({'y':sim.domain.y})
-        #-------
-        # If pcons in not list, then the last dim is always the size
-        if (len(pcon.shape)-time) >= 3:
-            import numpy as np
-            if (len(pcon.shape) - time) == 4:
-                coords.update({'z':sim.domain.z})
-            #coords.update({'size':np.arange(pcon.shape[-1])})
-            coords.update({'size':sim.droplet_sizes})
-        #-------
-        if (len(pcon.shape)-time) == 5:
-            raise ValueError("Too many dimensions in array")
-        try:
-            return sim.DataArray(pcons, coords=coords, dims=['x', 'y', 'z'])
-        except:
-            return sim.DataArray(pcons, coords=coords, dims=['time', 'x', 'y', 'z'])
-    #----------
-
-
 def radial_prof3D(data, r=None, simulation=None, func=None):
     """
     Gets a radial profile around the center of `data`.
@@ -508,30 +435,6 @@ def nearest(array, values, return_idx=False):
     else:
         return array[idx]
 
-def detect_local_minima(arr):
-    """
-    Takes an array and detects the troughs using the local maximum filter.
-    Returns a boolean mask of the troughs (i.e. 1 when
-    the pixel's value is the neighborhood maximum, 0 otherwise)
-    """
-    import numpy as np
-    import scipy.ndimage.filters as filters
-    import scipy.ndimage.morphology as morphology
-    # http://stackoverflow.com/questions/3684484/peak-detection-in-a-2d-array/3689710#3689710
-    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.morphology.html#generate_binary_structure
-    neighborhood = morphology.generate_binary_structure(len(arr.shape),2)
-    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.filters.html#minimum_filter
-    local_min = (filters.minimum_filter(arr, footprint=neighborhood)==arr)
-    # In order to isolate the peaks we must remove the background from the mask.
-    background = (arr==0)
-    # we must erode the background in order to subtract it from local_min, or a line will 
-    # appear along the background border (artifact of the local minimum filter)
-    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.morphology.html#binary_erosion
-    eroded_background = morphology.binary_erosion(background, structure=neighborhood, border_value=1)
-    detected_minima = local_min - eroded_background
-    return np.where(detected_minima)  
-
-
 
 
 
@@ -564,52 +467,48 @@ cdict2 = {'red':   ((0.0, 0.0, 0.0),
 blue_red1 = _lin_cmap('BlueRed1', cdict1)
 blue_red2 = _lin_cmap('BlueRed2', cdict2)
 
-def _paramParser(nmlpath):
-    """Function that parses parameters from param.nml namelist files
-    """
-    from .nml import read
-    #from .f90nml import read
-    from os.path import basename, isfile, exists, join, abspath
-    from os import remove
 
-    buffername = nmlpath.replace('/', '_') + '.buffer'
-    if exists(nmlpath):
-        #----------
-        # If nmlpath is a file, it's probably just the param.nml file
-        if isfile(nmlpath):
-            namelist=open(nmlpath, 'rt')
-        #----------
+def get_dicts(sim, nz=None):
+    if nz is None:
+        nz=sim.nz_tot
 
-        #----------
-        # If it's a dir, we first look the param.nml in the dir and then in the codebkp dir
-        else:
-            try:
-                namelist = open(join(nmlpath, 'param.nml'), 'rt')
-                print('Found param.nml at {}'.format(abspath('param.nml')))
-            except:
-                namelist = open(join(nmlpath, 'codebkp/param.nml'), 'rt')
-                print('Found param.nml at {}'.format(abspath('codebkp/param.nml')))
-        #----------
+    vdict = dict()
+    vdict["u"] = dict(name="u", 
+                      dims=["x", "y", "z"],
+                      coords=dict(x=sim.domain.x,
+                                  y=sim.domain.y,
+                                  z=sim.domain.z_u[:nz],))
 
-    else:
-        raise ValueError('Path {} doesnt exist'.format(nmlpath))
+    vdict["v"] = dict(name="v", 
+                      dims=["x", "y", "z"],
+                      coords=dict(x=sim.domain.x,
+                                  y=sim.domain.y,
+                                  z=sim.domain.z_u[:nz],))
 
-    #----------
-    # lines with % are not supported (type character resolver)
-    # rls_src has variables in it, so python can't understand it
-    nml = namelist.readlines()
-    nml = [ line for line in nml if '%' not in line ]
-    nml = [ line for line in nml if 'rls_src' not in line ]
-    aux = open(buffername, 'wt')
-    aux.writelines(nml)
-    aux.close()
-    #----------
+    vdict["w"] = dict(name="w", 
+                      dims=["x", "y", "z"],
+                      coords=dict(x=sim.domain.x,
+                                  y=sim.domain.y,
+                                  z=sim.domain.z_w[:nz],))
 
-    groups = read(buffername)
-    remove(buffername)
-    params = {}
-    for key in groups.keys():
-        params.update(groups[key])
-    return params
+    vdict["θ"] = dict(name="θ", 
+                      dims=["x", "y", "z"],
+                      coords=dict(x=sim.domain.x,
+                                  y=sim.domain.y,
+                                  z=sim.domain.z_u[:nz],))
+
+    vdict["b"] = dict(name="b", 
+                      dims=["x", "y", "z"],
+                      coords=dict(x=sim.domain.x,
+                                  y=sim.domain.y,
+                                  z=sim.domain.z_u[:nz],))
+
+    vdict["c"] = dict(name="c", 
+                      dims=["x", "y", "z", "index"],
+                      coords=dict(x=sim.domain.x,
+                                  y=sim.domain.y,
+                                  z=sim.domain.z_u[:nz],
+                                  index=np.arange(sim.n_con),))
 
 
+    return vdict

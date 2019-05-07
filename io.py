@@ -271,3 +271,113 @@ def fortran2xr(fname, vlist, padded=False, dtype=_np.float64):
     bfile.close()
     return dalist
 
+
+def readBinary2(fname, simulation=None, n_con=None, pcon_index='w_r',
+                nz=None, nz_full=None):
+    """
+    Reads a binary file according to the simulation or domain object passed
+
+    Parameters
+    ----------
+    fname: string
+        path of the binary file you want to open
+    simulation: lespy.Simulation
+        simulation that contains important information to assemble the file. Mostly
+        it's used to get number of points, if temperature is in the file or not and n_con.
+    n_con: int
+        number of pcon sizes to read. Overwrites n_con from simulation
+    """
+    from os import path
+    from . import Simulation
+    import numpy as np
+
+    #---------
+    # Trying to be general
+    if simulation!=None:
+        sim = simulation
+    else:
+        sim = Simulation(path.dirname(path.abspath(fname)))
+    domain = sim.domain
+    #---------
+
+    #---------
+    # Useful for later. Might as well do it just once here
+    if type(nz)==type(None):
+        nz=domain.nz_tot-1
+    if type(nz_full)==type(None):
+        nz_full=domain.nz_tot-1
+    
+    kfill = nz_full - nz
+    u_nd = domain.nx*domain.ny*nz
+    u_fill = domain.nx*domain.ny*kfill
+    #---------
+
+    #--------------
+    # For fortran unformatted direct files you have to skip first 4 bytes
+    if fname.endswith('.bin'): 
+        padded=True
+    else:
+        padded=False
+    #--------------
+
+    #--------------
+    from .utils import get_dicts
+    vdict = get_dicts(sim, nz=nz)
+    #--------------
+
+    #---------
+    # Straightforward
+    if path.basename(fname).startswith('pcon'):
+        vlist = [vdict["c"]]
+        pcon = fortran2xr(fname, vlist, padded=padded, dtype=np.float64)
+        pcon *= sim.pcon_scale
+        outlist = [pcon]
+    #---------
+    
+    #---------
+    # Straightforward
+    elif path.basename(fname).startswith('theta_jt') or path.basename(fname).startswith('temp_tt'):
+        vlist = [vdict["θ"]]
+        T, = fortran2xr(fname, vlist, padded=padded, dtype=np.float64)
+        T = 2.*sim.t_init - T*sim.t_scale
+        T.attrs=dict(long_name="Pot temperature", units="K")
+        outlist = [T]
+    #---------
+
+    #---------
+    # Straightforward
+    elif path.basename(fname).startswith('uvw_jt') or path.basename(fname).startswith('vel_tt'):
+        vdict["v"]["jumpto"] = sim.nx*sim.ny*nz_full*8
+        vdict["w"]["jumpto"] = sim.nx*sim.ny*nz_full*8*2
+        vlist = [vdict["u"], vdict["v"], vdict["w"],] 
+        u,v,w = fortran2xr(fname, vlist, padded=padded, dtype=np.float64)
+        u = u*sim.u_scale; v = v*sim.u_scale; w =-w*sim.u_scale
+
+        u.attrs=dict(long_name="$u$", units="m/s")
+        v.attrs=dict(long_name="$v$", units="m/s")
+        w.attrs=dict(long_name="$w$", units="m/s")
+
+        outlist = [u,v,w]
+    #---------
+
+    #---------
+    # Spectra
+    elif path.basename(fname).startswith('spec_uvwT'):
+        ndz=4*(domain.nx//2)*(domain.nz_tot-1)
+        u,v,w,T = np.fromfile(bfile, dtype=np.float32, count=ndz).reshape((4,domain.nx//2, domain.nz_tot-1), order='F')
+        print('Not normalized')
+        outlist = [u,v,w,T]
+    #---------
+
+    #---------
+    # Add units as attributes
+    from .utils import add_units
+    for i in range(len(outlist)):
+        outlist[i] = add_units(outlist[i])
+    if len(outlist)==1:
+        outlist=outlist[0]
+    #---------
+
+    return outlist
+
+
