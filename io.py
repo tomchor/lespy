@@ -212,4 +212,63 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     return outlist
 
 
-
+    def fortran2xr(fname, vlist, padded=False, dtype=np.float64):
+        """
+        Reads a binary file according to the simulation or domain object passed
+    
+        Parameters
+        ----------
+        fname: string
+            path of the binary file you want to open
+        vlist: list 
+            list of dictionaries with relevant parameters for each variable (see loop)
+        """
+        import numpy as np
+        import xarray as xr
+    
+        #---------
+        # Open file as binary
+        bfile = open(fname, 'rb')
+        #---------
+    
+        #--------------
+        # For some fortran unformatted direct files you have to skip first 4 bytes
+        if padded: bfile.read(4)
+        #--------------
+        
+        #---------
+        # Read each variable into a DataArray and put it in a list.
+        # Each variable is assumed to be in sequence, unless `jumpto`
+        # keyword is added to the dict. That is the byte count
+        # at which each variable starts in the file. `jumpto` is
+        # useful if you don't wanna read the whole thing and know
+        # exactly where your variable is.
+        dalist = []
+        for i, vdict in enumerate(vlist):
+            print(i)
+    
+            #------
+            # Shape can be infered from the coords. dtype can't. Both are needed to
+            # calculate the amount of bytes to read
+            shape = [ len(el) for el in vdict["coords"].values() ]
+            if "dtype" not in vdict.keys(): 
+                idtype=dtype
+            else:
+                idtype=vdict["dtype"]
+            #------
+    
+            #------
+            # Jump to given byte
+            if "jumpto" in vdict:
+                bfile.seek(vdict["jumpto"])
+            #------
+    
+            #------
+            # Read based on size of var, make it into DataArray and append
+            arr = np.fromfile(bfile, dtype=idtype, count=np.prod(shape)).reshape(shape, order='F')
+            dalist.append(xr.DataArray(arr, dims=vdict["dims"], coords=vdict["coords"]))
+            #------
+    
+        bfile.close()
+        return dalist
+    

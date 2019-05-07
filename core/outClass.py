@@ -78,7 +78,7 @@ class Output(object):
         return
 
 
-    def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None, as_dataarray=True, 
+    def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None,
                      apply_to_z=False, z_function=lambda x: x[:,:,0], 
                      chunksize=None, pcon_index="w_r", 
                      dtype=None, nz=None, nz_full=None):
@@ -92,8 +92,6 @@ class Output(object):
             initial and final time steps
         simulation: lespy.Simulation object
             simulation to consider when processing the results
-        as_dataarray: bool
-            if true, return xarray.DataArray. If false, return np.ndarray object
         apply_to_z: bool
             If true, z_function is applied to each instantaneous 3D patch before
             merging into final array and final array has shape (time, x, y[, n_con]).
@@ -156,18 +154,15 @@ class Output(object):
             #--------
 
 
-        if as_dataarray:
-            from ..utils import add_units
-            out = utils.get_DA(pcons, simulation=sim, dims=dims, time=cons.index.tolist())
-            out = add_units(out)
-            if chunksize is not None:
-                out = out.chunk(dict(itime=chunksize))
-        else:
-            out = pcons
+        from ..utils import add_units
+        out = utils.get_DA(pcons, simulation=sim, dims=dims, time=cons.index.tolist())
+        out = add_units(out)
+        if chunksize is not None:
+            out = out.chunk(dict(itime=chunksize))
         return out
 
 
-    def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True, 
+    def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None,
                     apply_to_z=False, z_function=lambda x: x[:,:,0], 
                     chunksize=None,
                     dtype=None, nz=None, nz_full=None):
@@ -253,23 +248,20 @@ class Output(object):
 
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
-        if as_dataarray:
-            from ..utils import add_units
-            out = [utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
-                   utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
-                   utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()), ]
-            for i in range(len(out)):
-                out[i] = add_units(out[i])
-                if chunksize is not None:
-                    out[i] = out[i].chunk(dict(itime=chunksize))
-        else:
-            out = [u, v, w]
+        from ..utils import add_units
+        out = [utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
+               utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
+               utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()), ]
+        for i in range(len(out)):
+            out[i] = add_units(out[i])
+            if chunksize is not None:
+                out[i] = out[i].chunk(dict(itime=chunksize))
         #---------
 
         return out
 
 
-    def compose_theta(self, simulation=None, times=None, t_ini=0, t_end=None, as_dataarray=True, 
+    def compose_theta(self, simulation=None, times=None, t_ini=0, t_end=None,
                       apply_to_z=False, z_function=lambda x: x[:,:,0], 
                       chunksize=None,
                       dtype=None, nz=None, nz_full=None):
@@ -346,15 +338,12 @@ class Output(object):
 
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
-        if as_dataarray:
-            from ..utils import add_units
-            out = utils.get_DA(theta, simulation=sim, dims=dims_u, time=bins.index.tolist())
-            out = add_units(out)
-            if chunksize is not None:
-                out = out.chunk(dict(itime=chunksize))
+        from ..utils import add_units
+        out = utils.get_DA(theta, simulation=sim, dims=dims_u, time=bins.index.tolist())
+        out = add_units(out)
+        if chunksize is not None:
+            out = out.chunk(dict(itime=chunksize))
 
-        else:
-            out = theta
         #---------
 
         return out
