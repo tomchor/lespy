@@ -223,11 +223,6 @@ def np2vtr(arrays, outname):
 
     if 'time' not in coords.dims:
         gridToVTK(outname, x,y,z, pointData = points)
-#        try:
-#            gridToVTK(outname, x,y,z, pointData = points)
-#        except AssertionError:
-#            arrays = { key:val.values for key,val in arrays.items() }
-#            gridToVTK(outname, x,y,z, pointData = arrays)
     else:
         timestamps = coords['time']
         for tstep in timestamps:
