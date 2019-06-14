@@ -100,6 +100,106 @@ class Simulation(object):
 
 
 
+class Simulation_sp(object):
+    """class for simulation parameters"""
+    def __init__(self, from_file=None, **kwargs):
+        import numpy as np
+        from .. import physics
+        #------------
+        # Start simulation from param.nml file
+        from ..utils import paramParser
+        params = paramParser(from_file)
+        #------------
+
+        #------------
+        params["nx"] = params["nxt"]
+        params["ny"] = params["nyt"]
+        params["nz_tot"] = params["nzt"]
+        params["lx"] = params["lx_tot"]
+        params["ly"] = params["ly_tot"]
+        #------------
+
+
+        #------------
+        aux = sim_from_file(from_file, params=params)
+        self.__dict__.update(vars(aux))
+        #------------
+
+        try:
+            self.u_scale*=1
+        except:
+            self.u_scale=self.u_star
+
+        self.w_star = self.get_w_star()
+        self.vel_settling=np.array(self.vel_settling)
+        try:
+            self.relax_freq=np.array(self.relax_freq)
+        except:
+            pass
+        self.droplet_sizes=physics.get_dropletSize(self.vel_settling, nominal=True, nowarning=True).astype(int)
+        if type(self.droplet_sizes)!=np.ndarray:
+            self.droplet_sizes=np.array([self.droplet_sizes])
+
+        try:
+            self.s_flag=self.theta_flag
+        except AttributeError:
+            self.theta_flag=self.s_flag
+
+
+    def check(self, full=True):
+        """
+        Check important characteristics of the simulation
+        """
+        CFL_x=self.u_scale*self.dt/self.domain.dx
+        print('CFL (u_scale*dt/dx)          : {:.2e}'.format(CFL_x))
+        print('dx/dz                        : {:2.1f}\t\t{}'.format(self.domain.dx/self.domain.dz,'-- Should be < 5 in practice'))
+        print('lx/z_inv                     : {:2.1f}\t\t{}'.format(self.domain.lx/self.inversion_depth,'-- Should be > 6. At *least* 4.'))
+        divs = []
+        for i in range(2,140):
+            if self.domain.nz%i == 0:
+                divs.append(i)
+        print('Nz = {:03d} and is divisible by : {}'.format(self.domain.nz, divs))
+        if full:
+            print('Coriolis timescale           : {:1.1e} timesteps'.format(int(1./self.freq_coriolis/self.dt)))
+
+    def get_w_star(self):
+        """Calculates the convective scale"""
+        from .. import physics as phys
+        return phys.w_star(self)
+
+
+    def DataArray(self, array, **kwargs):
+        """
+        Creates a DataArray specifically for this simulation.
+        
+        Currently does not work with xarray yet because of different domain.
+        """
+        #import xarray as xr
+        from ..utils import get_DA
+        da = get_DA(array, simulation=self, **kwargs)
+        return da
+
+    def to_hours(self, timesteps, to_label=False):
+        """Transforms from simulation timesteps to hours"""
+        out = timesteps*self.dt/(60*60)
+        if to_label:
+            out = [ '{:.2f} hours'.format(el) for el in out ]
+        return out
+
+    def __str__(self):
+        buff='Simulation Parameters\n'+ '-'*21
+        buff += '\nEndless    : {}\n'.format(self.flag_endless)
+        buff += 'dt:        : {} s\n'.format(self.dt)
+        buff+= self.domain.__str__()
+        return buff
+    def __repr__(self):
+        aux = """<lespy.Simulation object>. Domain: {}""".format(self.domain.__repr__())
+        return aux
+
+
+
+
+
 
 
 class Simulation_old(object):
@@ -213,7 +313,7 @@ class Simulation_old(object):
 
 
 
-def sim_from_file(namelist, tlength_from_ke=False, check_ke_file=None):
+def sim_from_file(namelist, tlength_from_ke=False, check_ke_file=None, params=None):
     """Reads and parses namelist and then calls Simulation class"""
     from ..utils import paramParser, find_in_tree, nameParser
     from .dmClass import Domain as Dom
@@ -221,7 +321,8 @@ def sim_from_file(namelist, tlength_from_ke=False, check_ke_file=None):
 
     #---------
     # Reads parameters from param.nml and creates domain class
-    params = paramParser(namelist)
+    if params is None:
+        params = paramParser(namelist)
     dmn = Dom(nx=params['nx'], ny=params['ny'], nz_tot=params['nz_tot'],
             nz=params['nz_tot']-1,
             lx=params['lx'], ly=params['ly'], lz=params['lz_tot'])
