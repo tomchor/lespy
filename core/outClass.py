@@ -637,20 +637,11 @@ class Output_sp(object):
         if type(nz)==type(None):
             nz=sim.domain.nz_tot-1
         if apply_to_z:
-#            print('Creating 3 arrays of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
-#            u = np.full((len(bins), Nx, sim.ny), np.nan)
-#            v = np.full((len(bins), Nx, sim.ny), np.nan)
-#            w = np.full((len(bins), Nx, sim.ny), np.nan)
             dims_u = ['itime', 'x', 'y']
             dims_w = ['itime', 'x', 'y']
         else: 
-#            print('Creating 3 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, nz))
-#            u = np.full((len(bins), Nx, sim.ny, nz), np.nan)
-#            v = np.full((len(bins), Nx, sim.ny, nz), np.nan)
-#            w = np.full((len(bins), Nx, sim.ny, nz), np.nan)
             dims_u = ['itime', 'x', 'y', 'z_u']
             dims_w = ['itime', 'x', 'y', 'z_w']
-#        print(' done.')
         #---------
 
         #---------
@@ -685,17 +676,108 @@ class Output_sp(object):
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
         from ..utils import add_units
-        print(u)
         u = xr.concat(u, dim="itime").assign_coords(itime=bins.index.tolist())
-        print(u)
-        exit()
-        out = [utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
-               utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
-               utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()), ]
+        v = xr.concat(v, dim="itime").assign_coords(itime=bins.index.tolist())
+        w = xr.concat(w, dim="itime").assign_coords(itime=bins.index.tolist())
+        out = [u, v, w]
         for i in range(len(out)):
             out[i] = add_units(out[i])
             if chunksize is not None:
                 out[i] = out[i].chunk(dict(itime=chunksize))
+        #---------
+
+        return out
+
+
+    def compose_theta(self, simulation=None, times=None, t_ini=0, t_end=None,
+                    apply_to_z=False, z_function=lambda x: x[:,:,0], 
+                    chunksize=None,
+                    dtype=None, nz=None, nz_full=None):
+        """
+        Puts together everything in time
+        Output array indexes are
+        time, x, y, z
+
+        Parameters
+        ----------
+        self: lp.Output
+        times: slice
+            slice with which times to read.
+        simulation: lp.Simulation
+            to be used as base
+        """
+        from .. import utils, routines, io
+        import numpy as np
+        import pandas as pd
+        import xarray as xr
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError("You need to provide a simulation object here")
+
+        #--------------
+        # Only these types of file we deal with here
+        label = 'field_'
+        Nx=sim.domain.nx
+        #--------------
+
+        #--------------
+        # Adjust intervals
+        if type(times)!=type(None):
+            bins = self.binaries.loc[:,label].dropna(how='all').loc[times]
+        else:
+            if t_end is None:
+                bins = self.binaries.loc[t_ini:, label].dropna(how='all')
+            else:
+                bins = self.binaries.loc[t_ini:t_end, label].dropna(how='all')
+        #--------------
+        
+        #---------
+        # Definition of output with time, x, y[ and z]
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot-1
+        if apply_to_z:
+            dims_u = ['itime', 'x', 'y']
+        else: 
+            dims_u = ['itime', 'x', 'y', 'z_u']
+        #---------
+
+        #---------
+        # Prepare for reading fortran file
+        vdict = utils.get_dicts(sim, nz=nz)
+        vdict["θ"]["jumpto"] = sim.nx*sim.ny*(sim.nz_tot-1)*4*4
+        vlist = [vdict["θ"]]
+        #---------
+
+        #---------
+        # Iterate between field_ files
+        theta = []
+        for i,col in enumerate(bins):
+            if not isinstance(col, str): continue
+            print(col)
+            aux, = io.fortran2xr(col, vlist, dtype=np.float32)
+            aux = 2.*sim.t_init - aux*sim.t_scale
+
+            #------
+            # Reduce z coordinate if theres a z_function
+            if apply_to_z:
+                aux = [ z_function(el) for el in aux ]
+            #------
+
+            theta.append(aux)
+            #---------
+        #---------
+
+        #---------
+        # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        from ..utils import add_units
+        theta = xr.concat(theta, dim="itime").assign_coords(itime=bins.index.tolist())
+        out = theta
+        for i in range(len(out)):
+            out = add_units(out)
+            if chunksize is not None:
+                out = out.chunk(dict(itime=chunksize))
         #---------
 
         return out
