@@ -445,6 +445,264 @@ class Output(object):
         return zip(*outs)
 
 
+class Output_sp(object):
+    """
+    Class that holds the output of the model and processes it.
+    It's diferent from the Simulation class, but it can't do stuff without it.
+    """
+    def __init__(self, oppath, apply_basename=False, n_cons=[1], separate_ncon=True, verbose=False):
+        """
+        Lists every output file from a simulation (so far only uvw_jt, theta_jt and pcon_jt)
+
+        oppath can be either the directory of the output, or one of the outuput binary files
+        """
+        from os import path
+        from glob import glob
+        import pandas as pd
+        from .. import utils
+
+        #----------
+        # We use pandas to organize all the files (very handy)
+        opfiles = pd.DataFrame(columns=['field_', 'pcon_jt'])
+        #----------
+
+        #----------
+        # If we get a file, we search in the directory of that file
+        if path.isfile(oppath):
+            oppath = path.dirname(oppath)
+        elif path.isdir(oppath):
+            pass
+        else:
+            print('No wildcards')
+            raise Exception
+        #----------
+
+        print('Starting to read output as ', end='')
+        #----------
+        # List field_ files
+        field_ = sorted(glob(path.join(oppath, 'field_*out')))
+        if field_: print('field_', end=' ')
+        for fname in field_:
+            ndtime = utils.nameParser(fname)
+            opfiles.loc[ndtime, 'field_'] = fname
+        #----------
+
+        #----------
+        # list pcon_jt files (each entry is a list, since there can be lots for each timestep
+        pcon_jt = sorted(glob(path.join(oppath, 'pcon_jt*bin')))
+        if pcon_jt: print('pcon_jt', end=' ')
+        if apply_basename:
+            pcon_jt = map(path.basename, pcon_jt)
+
+        for fname in pcon_jt:
+            ndtime = utils.nameParser(fname)
+            opfiles.loc[ndtime, 'pcon_jt'] = fname
+        #----------
+
+        self.binaries = opfiles.sort_index()
+        print('... done reading and organizing.')
+        return
+
+
+    def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None,
+                     apply_to_z=False, z_function=lambda x: x[:,:,0], 
+                     chunksize=None, pcon_index="w_r", 
+                     dtype=None, nz=None, nz_full=None):
+        """
+        Puts together particle outputs in space (for ENDLESS patches) and in time
+        creating one big 5-dimensional numpy array in return, with the axes being
+        time, x, y, z, n_con
+        where n_con is the number of the particle
+
+        t_ini, t_end: int
+            initial and final time steps
+        simulation: lespy.Simulation object
+            simulation to consider when processing the results
+        apply_to_z: bool
+            If true, z_function is applied to each instantaneous 3D patch before
+            merging into final array and final array has shape (time, x, y[, n_con]).
+            If false, full 3D patch is merged and final array has shape (time,x,y,z[,n_con]).
+            Currently only tested for endless (pcon_jt outputs).
+        z_function: function
+            Function (should be manually set to apply on z axis) to be applied on z axis
+            if apply_to_z in True.
+        dtype: numpy.type, python.type
+            type to initialize the array with.
+        """
+        from .. import utils, routines, io
+        import numpy as np
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError("You need to provide a simulation object here")
+
+        #--------------
+        # Only these types of file have pcon output (maybe con_t also)
+        label = 'pcon_jt'
+        #--------------
+
+        #--------------
+        # Adjust intervals
+        if type(times)!=type(None):
+            cons = self.binaries.loc[:,label].dropna(how='all').loc[times]
+        else:
+            if t_end is None:
+                cons = self.binaries.loc[t_ini:, label].dropna(how='all')
+            else:
+                cons = self.binaries.loc[t_ini:t_end, label].dropna(how='all')
+        #--------------
+
+        #---------
+        # For too-large sizes, it's better to integrate over z patch-by-patch
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot-1
+        if apply_to_z:
+            print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.n_con))
+            pcons = np.full((len(cons), sim.nx, sim.ny, sim.n_con), np.nan, dtype=dtype)
+            dims = ['itime', 'x', 'y', pcon_index]
+        else:
+            print('Creating array of ',(len(cons), sim.nx, sim.ny, nz, sim.n_con))
+            pcons = np.full((len(cons), sim.nx, sim.ny, nz, sim.n_con), np.nan, dtype=dtype)
+            dims = ['itime', 'x', 'y', 'z_u', pcon_index]
+        #---------
+
+        for i, fname in enumerate(cons):
+            print(i, cons.index[i], fname)
+            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=False, nz=nz, nz_full=nz_full)
+
+            #--------
+            # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge
+            if apply_to_z:
+                pcons[i,:,:,:] = z_function(con[:sim.nx,:,:,:])
+            else:
+                pcons[i,:,:,:,:] = con[:sim.nx,:,:,:]
+            #--------
+
+
+        from ..utils import add_units
+        out = utils.get_DA(pcons, simulation=sim, dims=dims, time=cons.index.tolist())
+        out = add_units(out)
+        if chunksize is not None:
+            out = out.chunk(dict(itime=chunksize))
+        return out
+
+
+    def compose_uvw(self, simulation=None, times=None, t_ini=0, t_end=None,
+                    apply_to_z=False, z_function=lambda x: x[:,:,0], 
+                    chunksize=None,
+                    dtype=None, nz=None, nz_full=None):
+        """
+        Puts together everything in time
+        Output array indexes are
+        time, x, y, z
+
+        Parameters
+        ----------
+        self: lp.Output
+        times: slice
+            slice with which times to read.
+        simulation: lp.Simulation
+            to be used as base
+        """
+        from .. import utils, routines, io
+        import numpy as np
+        import pandas as pd
+        import xarray as xr
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError("You need to provide a simulation object here")
+
+        #--------------
+        # Only these types of file we deal with here
+        label = 'field_'
+        Nx=sim.domain.nx
+        #--------------
+
+        #--------------
+        # Adjust intervals
+        if type(times)!=type(None):
+            bins = self.binaries.loc[:,label].dropna(how='all').loc[times]
+        else:
+            if t_end is None:
+                bins = self.binaries.loc[t_ini:, label].dropna(how='all')
+            else:
+                bins = self.binaries.loc[t_ini:t_end, label].dropna(how='all')
+        #--------------
+        
+        #---------
+        # Definition of output with time, x, y[ and z]
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot-1
+        if apply_to_z:
+#            print('Creating 3 arrays of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
+#            u = np.full((len(bins), Nx, sim.ny), np.nan)
+#            v = np.full((len(bins), Nx, sim.ny), np.nan)
+#            w = np.full((len(bins), Nx, sim.ny), np.nan)
+            dims_u = ['itime', 'x', 'y']
+            dims_w = ['itime', 'x', 'y']
+        else: 
+#            print('Creating 3 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, nz))
+#            u = np.full((len(bins), Nx, sim.ny, nz), np.nan)
+#            v = np.full((len(bins), Nx, sim.ny, nz), np.nan)
+#            w = np.full((len(bins), Nx, sim.ny, nz), np.nan)
+            dims_u = ['itime', 'x', 'y', 'z_u']
+            dims_w = ['itime', 'x', 'y', 'z_w']
+#        print(' done.')
+        #---------
+
+        #---------
+        # Prepare for reading fortran file
+        vdict = utils.get_dicts(sim, nz=nz)
+        vdict["v"]["jumpto"] = sim.nx*sim.ny*(sim.nz_tot-1)*4*1
+        vdict["w"]["jumpto"] = sim.nx*sim.ny*(sim.nz_tot-1)*4*2
+        vlist = [vdict["u"], vdict["v"], vdict["w"]]
+        #---------
+
+        #---------
+        # Iterate between field_ files
+        u,v,w, = [],[],[],
+        for i,col in enumerate(bins):
+            if not isinstance(col, str): continue
+            print(col)
+            aux = io.fortran2xr(col, vlist, dtype=np.float32)
+            aux = [ a*sim.u_scale for a in aux ]
+
+            #------
+            # Reduce z coordinate if theres a z_function
+            if apply_to_z:
+                aux = [ z_function(el) for el in aux ]
+            #------
+
+            u.append(aux[0])
+            v.append(aux[1])
+            w.append(aux[2])
+            #---------
+        #---------
+
+        #---------
+        # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        from ..utils import add_units
+        print(u)
+        u = xr.concat(u, dim="itime").assign_coords(itime=bins.index.tolist())
+        print(u)
+        exit()
+        out = [utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
+               utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
+               utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()), ]
+        for i in range(len(out)):
+            out[i] = add_units(out[i])
+            if chunksize is not None:
+                out[i] = out[i].chunk(dict(itime=chunksize))
+        #---------
+
+        return out
+
+
+
+
 
 
 class Output_old(object):
