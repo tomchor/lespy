@@ -212,7 +212,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     return outlist
 
 
-def fortran2xr(fname, vlist, padded=False, dtype=_np.float64):
+def fortran2xr(fname, vlist, padded=False, dtype=_np.float64, verbose=False):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -244,7 +244,7 @@ def fortran2xr(fname, vlist, padded=False, dtype=_np.float64):
     # exactly where your variable is.
     dalist = []
     for i, vdict in enumerate(vlist):
-        print(i)
+        if verbose: print(i)
 
         #------
         # Shape can be infered from the coords. dtype can't. Both are needed to

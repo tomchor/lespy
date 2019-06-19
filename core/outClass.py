@@ -105,6 +105,7 @@ class Output(object):
         """
         from .. import utils, routines, io
         import numpy as np
+        import xarray as xr
 
         if simulation:
             sim=simulation
@@ -131,33 +132,28 @@ class Output(object):
         # For too-large sizes, it's better to integrate over z patch-by-patch
         if type(nz)==type(None):
             nz=sim.domain.nz_tot-1
-        if apply_to_z:
-            print('Creating array of ',(len(cons), sim.nx, sim.ny, sim.n_con))
-            pcons = np.full((len(cons), sim.nx, sim.ny, sim.n_con), np.nan, dtype=dtype)
-            dims = ['itime', 'x', 'y', pcon_index]
-        else:
-            print('Creating array of ',(len(cons), sim.nx, sim.ny, nz, sim.n_con))
-            pcons = np.full((len(cons), sim.nx, sim.ny, nz, sim.n_con), np.nan, dtype=dtype)
-            dims = ['itime', 'x', 'y', 'z_u', pcon_index]
         #---------
 
+        pcons = []
         for i, fname in enumerate(cons):
             print(i, cons.index[i], fname)
-            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=False, nz=nz, nz_full=nz_full)
+            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=True, nz=nz, nz_full=nz_full)
 
             #--------
             # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge
             if apply_to_z:
-                pcons[i,:,:,:] = z_function(con[:sim.nx,:,:,:])
+                pcons.append(z_function(con))
             else:
-                pcons[i,:,:,:,:] = con[:sim.nx,:,:,:]
+                pcons.append(con)
             #--------
 
 
+        #--------
+        out = xr.concat(pcons, dim="itime").assign_coords(itime=bins.index.tolist())
         from ..utils import add_units
-        out = utils.get_DA(pcons, simulation=sim, dims=dims, time=cons.index.tolist())
         out = add_units(out)
         if chunksize is not None:
+            print("Chunking with Dask")
             out = out.chunk(dict(itime=chunksize))
         return out
 
@@ -181,7 +177,7 @@ class Output(object):
         """
         from .. import utils, routines, io
         import numpy as np
-        import pandas as pd
+        import xarray as xr
 
         if simulation:
             sim=simulation
@@ -209,29 +205,15 @@ class Output(object):
         # Definition of output with time, x, y[ and z]
         if type(nz)==type(None):
             nz=sim.domain.nz_tot-1
-        if apply_to_z:
-            print('Creating 3 arrays of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
-            u = np.full((len(bins), Nx, sim.ny), np.nan)
-            v = np.full((len(bins), Nx, sim.ny), np.nan)
-            w = np.full((len(bins), Nx, sim.ny), np.nan)
-            dims_u = ['itime', 'x', 'y']
-            dims_w = ['itime', 'x', 'y']
-        else: 
-            print('Creating 3 arrays of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, nz))
-            u = np.full((len(bins), Nx, sim.ny, nz), np.nan)
-            v = np.full((len(bins), Nx, sim.ny, nz), np.nan)
-            w = np.full((len(bins), Nx, sim.ny, nz), np.nan)
-            dims_u = ['itime', 'x', 'y', 'z_u']
-            dims_w = ['itime', 'x', 'y', 'z_w']
-        print(' done.')
         #---------
 
         #---------
         # Iterate between uvw_jt files
+        u,v,w, = [],[],[],
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
             print(col)
-            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz, nz_full=nz_full)
+            aux = io.readBinary(col, simulation=sim, as_DA=True, nz=nz, nz_full=nz_full)
 
             #------
             # Reduce z coordinate if theres a z_function
@@ -239,22 +221,23 @@ class Output(object):
                 aux = [ z_function(el) for el in aux ]
             #------
 
-            ui,vi,wi = aux
-            u[i] = ui
-            v[i] = vi
-            w[i] = wi
+            u.append(aux[0])
+            v.append(aux[1])
+            w.append(aux[2])
             #---------
         #---------
 
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        u = xr.concat(u, dim="itime").assign_coords(itime=bins.index.tolist())
+        v = xr.concat(v, dim="itime").assign_coords(itime=bins.index.tolist())
+        w = xr.concat(w, dim="itime").assign_coords(itime=bins.index.tolist())
+        out = [u, v, w]
         from ..utils import add_units
-        out = [utils.get_DA(u, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
-               utils.get_DA(v, simulation=sim, dims=dims_u, time=bins.index.tolist()), 
-               utils.get_DA(w, simulation=sim, dims=dims_w, time=bins.index.tolist()), ]
         for i in range(len(out)):
             out[i] = add_units(out[i])
             if chunksize is not None:
+                print("Chunking with Dask")
                 out[i] = out[i].chunk(dict(itime=chunksize))
         #---------
 
@@ -280,7 +263,7 @@ class Output(object):
         """
         from .. import utils, routines, io
         import numpy as np
-        import pandas as pd
+        import xarray as xr
 
         if simulation:
             sim=simulation
@@ -308,23 +291,15 @@ class Output(object):
         # Definition of output with time, x, y[ and z]
         if type(nz)==type(None):
             nz=sim.domain.nz_tot-1
-        if apply_to_z:
-            print('Creating 1 array of {}, {}, {}...'.format(len(bins), Nx, sim.ny))
-            theta = np.full((len(bins), Nx, sim.ny), np.nan)
-            dims_u = ['itime', 'x', 'y']
-        else: 
-            print('Creating 1 array of {}, {}, {}, {}...'.format(len(bins), Nx, sim.ny, nz))
-            theta = np.full((len(bins), Nx, sim.ny, nz), np.nan)
-            dims_u = ['itime', 'x', 'y', 'z_u']
-        print(' done.')
         #---------
 
         #---------
         # Iterate between uvw_jt files
+        theta = []
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
             print(col)
-            aux = io.readBinary(col, simulation=sim, as_DA=False, nz=nz, nz_full=nz_full)
+            aux = io.readBinary(col, simulation=sim, as_DA=True, nz=nz, nz_full=nz_full)
 
             #------
             # Reduce z coordinate if theres a z_function
@@ -332,16 +307,17 @@ class Output(object):
                 aux = [ z_function(el) for el in aux ]
             #------
 
-            theta[i] = aux
+            theta.append(aux)
             #---------
         #---------
 
         #---------
         # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        out = xr.concat(theta, dim="itime").assign_coords(itime=bins.index.tolist())
         from ..utils import add_units
-        out = utils.get_DA(theta, simulation=sim, dims=dims_u, time=bins.index.tolist())
         out = add_units(out)
         if chunksize is not None:
+            print("Chunking with dask")
             out = out.chunk(dict(itime=chunksize))
 
         #---------
@@ -636,12 +612,6 @@ class Output_sp(object):
         # Definition of output with time, x, y[ and z]
         if type(nz)==type(None):
             nz=sim.domain.nz_tot-1
-        if apply_to_z:
-            dims_u = ['itime', 'x', 'y']
-            dims_w = ['itime', 'x', 'y']
-        else: 
-            dims_u = ['itime', 'x', 'y', 'z_u']
-            dims_w = ['itime', 'x', 'y', 'z_w']
         #---------
 
         #---------
@@ -667,6 +637,7 @@ class Output_sp(object):
                 aux = [ z_function(el) for el in aux ]
             #------
 
+            #---------
             u.append(aux[0])
             v.append(aux[1])
             w.append(aux[2])
@@ -674,7 +645,7 @@ class Output_sp(object):
         #---------
 
         #---------
-        # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        # Concatenates the DataArrays
         from ..utils import add_units
         u = xr.concat(u, dim="itime").assign_coords(itime=bins.index.tolist())
         v = xr.concat(v, dim="itime").assign_coords(itime=bins.index.tolist())
@@ -737,10 +708,6 @@ class Output_sp(object):
         # Definition of output with time, x, y[ and z]
         if type(nz)==type(None):
             nz=sim.domain.nz_tot-1
-        if apply_to_z:
-            dims_u = ['itime', 'x', 'y']
-        else: 
-            dims_u = ['itime', 'x', 'y', 'z_u']
         #---------
 
         #---------
@@ -770,7 +737,7 @@ class Output_sp(object):
         #---------
 
         #---------
-        # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        # Concatenates in itime
         from ..utils import add_units
         theta = xr.concat(theta, dim="itime").assign_coords(itime=bins.index.tolist())
         out = theta
