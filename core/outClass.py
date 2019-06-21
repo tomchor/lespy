@@ -120,12 +120,12 @@ class Output(object):
         #--------------
         # Adjust intervals
         if type(times)!=type(None):
-            cons = self.binaries.loc[:,label].dropna(how='all').loc[times]
+            bins = self.binaries.loc[:,label].dropna(how='all').loc[times]
         else:
             if t_end is None:
-                cons = self.binaries.loc[t_ini:, label].dropna(how='all')
+                bins = self.binaries.loc[t_ini:, label].dropna(how='all')
             else:
-                cons = self.binaries.loc[t_ini:t_end, label].dropna(how='all')
+                bins = self.binaries.loc[t_ini:t_end, label].dropna(how='all')
         #--------------
 
         #---------
@@ -135,8 +135,8 @@ class Output(object):
         #---------
 
         pcons = []
-        for i, fname in enumerate(cons):
-            print(i, cons.index[i], fname)
+        for i, fname in enumerate(bins):
+            print(i, bins.index[i], fname)
             con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=True, nz=nz, nz_full=nz_full)
 
             #--------

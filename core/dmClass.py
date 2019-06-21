@@ -1,8 +1,9 @@
 
 class Domain(object):
     """Class for domain parameters"""
-    def __init__(self, nx=None, ny=None, nz=None, nz_tot=None,
-                    dx=None, dy=None, dz=None, lx=None, ly=None, lz=None, origin=(0,0,0)):
+    def __init__(self, nx=None, ny=None, nz=None, nz_tot=None, 
+                 dx=None, dy=None, dz=None, lx=None, ly=None, lz=None, 
+                 origin=(0,0,0), ocean_flag=False):
         """Initialize the class. dx, dy, and dz can be calculated"""
         self.nx = nx
         self.ny = ny
@@ -18,6 +19,8 @@ class Domain(object):
         self.dx = dx
         self.dy = dy
         self.dz = dz
+
+        self.ocean_flag = ocean_flag
 
         self.points = self.nx*self.ny*self.nz
         self.get_resolution()
@@ -83,16 +86,21 @@ class Domain(object):
 
         x = np.arange(0, nx)*self.dx - origin_node[0]*self.dx
         y = np.arange(0, ny)*self.dy - origin_node[1]*self.dy
-        z = -(np.arange(0, nz_tot) - origin_node[2])*self.dz
+        if self.ocean_flag:
+            z_w = -(np.arange(0, nz_tot) - origin_node[2])*self.dz
+            z_u = -(np.arange(0, nz_tot) - origin_node[2] + 1/2)*self.dz
+        else:
+            z_w = (np.arange(0, nz_tot) - origin_node[2])*self.dz
+            z_u = (np.arange(0, nz_tot) - origin_node[2] + 1/2)*self.dz
 
         if type(array) != type(None):
             return x,y,z
         else:
             self.x = x+self.dx/2
             self.y = y+self.dy/2
-            self.z = z
-            self.z_u = z-self.dz/2
-            self.z_w = z
+            self.z = z_u
+            self.z_u = z_u
+            self.z_w = z_w
             return
 
 

@@ -323,9 +323,9 @@ def sim_from_file(namelist, tlength_from_ke=False, check_ke_file=None, params=No
     # Reads parameters from param.nml and creates domain class
     if params is None:
         params = paramParser(namelist)
-    dmn = Dom(nx=params['nx'], ny=params['ny'], nz_tot=params['nz_tot'],
-            nz=params['nz_tot']-1,
-            lx=params['lx'], ly=params['ly'], lz=params['lz_tot'])
+    dmn = Dom(nx=params['nx'], ny=params['ny'], nz_tot=params['nz_tot'], nz=params['nz_tot']-1, 
+              lx=params['lx'], ly=params['ly'], lz=params['lz_tot'],
+              ocean_flag=params['ocean_flag'])
     #---------
     
     #---------
