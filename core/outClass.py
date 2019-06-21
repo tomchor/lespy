@@ -137,7 +137,8 @@ class Output(object):
         pcons = []
         for i, fname in enumerate(bins):
             print(i, bins.index[i], fname)
-            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=True, nz=nz, nz_full=nz_full)
+            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, 
+                                as_DA=True, nz=nz, nz_full=nz_full, pcon_index=pcon_index)
 
             #--------
             # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge

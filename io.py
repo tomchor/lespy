@@ -43,19 +43,34 @@ def write_to_les(array, fname, simulation=None, **kwargs):
 def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kwargs):
     """
     Reads aver_* files from LES
+
+    for reading aver_PCon.out: dims=["ndtime", "z", "index"]
     """
     sim=simulation
     aver=_np.loadtxt(fname, **kwargs)
+
+    #-----
+    # If pcon file, the shape is different
     if 'pcon' in fname.lower():
-        aver=aver.reshape(-1, sim.n_con, aver.shape[-1], order='C').transpose(0,2,1)
-    ndtimes = aver[:,0]
+        aver = aver.reshape(-1, sim.n_con, aver.shape[-1], order='C').transpose(0,2,1)
+        ndtimes = aver[:,0,0]
+    else:
+        ndtimes = aver[:,0]
+    #-----
+
+    #-----
+    # Get the actual averages (without ndtime)
     aver = aver[:,1:]
     if squeeze:
         aver = _np.squeeze(aver)
+    #-----
 
+    #-----
+    # If dims is passed, return dataArray
     if dims:
         from . import utils
         aver = utils.get_DA(aver, simulation=sim, dims=dims, time=ndtimes)
+    #-----
 
     if return_times:
         return ndtimes, aver
