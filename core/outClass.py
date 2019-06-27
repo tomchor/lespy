@@ -136,7 +136,7 @@ class Output(object):
 
         pcons = []
         for i, fname in enumerate(bins):
-            print(i, bins.index[i], fname)
+            print(i, fname)
             con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, 
                                 as_DA=True, nz=nz, nz_full=nz_full, pcon_index=pcon_index)
 
@@ -213,7 +213,7 @@ class Output(object):
         u,v,w, = [],[],[],
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
-            print(col)
+            print(i, col)
             aux = io.readBinary(col, simulation=sim, as_DA=True, nz=nz, nz_full=nz_full)
 
             #------
@@ -299,7 +299,7 @@ class Output(object):
         theta = []
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
-            print(col)
+            print(i, col)
             aux = io.readBinary(col, simulation=sim, as_DA=True, nz=nz, nz_full=nz_full)
 
             #------
@@ -545,7 +545,7 @@ class Output_sp(object):
         #---------
 
         for i, fname in enumerate(cons):
-            print(i, cons.index[i], fname)
+            print(i, fname)
             con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, as_DA=False, nz=nz, nz_full=nz_full)
 
             #--------
@@ -628,7 +628,7 @@ class Output_sp(object):
         u,v,w, = [],[],[],
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
-            print(col)
+            print(i, col)
             aux = io.fortran2xr(col, vlist, dtype=np.float32)
             aux = [ a*sim.u_scale for a in aux ]
 
@@ -723,7 +723,7 @@ class Output_sp(object):
         theta = []
         for i,col in enumerate(bins):
             if not isinstance(col, str): continue
-            print(col)
+            print(i, col)
             aux, = io.fortran2xr(col, vlist, dtype=np.float32)
             aux = 2.*sim.t_init - aux*sim.t_scale
 
