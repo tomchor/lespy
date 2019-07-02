@@ -25,11 +25,14 @@ class Simulation(object):
             self.__dict__.update(kwargs)
         #------------
 
+        #-----
         try:
             self.u_scale*=1
         except:
             self.u_scale=self.u_star
+        #-----
 
+        #-----
         self.w_star = self.get_w_star()
         self.vel_settling=np.array(self.vel_settling)
         try:
@@ -39,11 +42,22 @@ class Simulation(object):
         self.droplet_sizes=physics.get_dropletSize(self.vel_settling, nominal=True, nowarning=True).astype(int)
         if type(self.droplet_sizes)!=np.ndarray:
             self.droplet_sizes=np.array([self.droplet_sizes])
+        #-----
 
+        #-----
+        # Make backwards compatible with older version of code
         try:
             self.s_flag=self.theta_flag
         except AttributeError:
             self.theta_flag=self.s_flag
+        #-----
+
+        #-----
+        # Make it easy to access resolution
+        self.Δx=self.domain.dx
+        self.Δy=self.domain.dy
+        self.Δz=self.domain.dz
+        #-----
 
 
     def check(self, full=True):
