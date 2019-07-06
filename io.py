@@ -175,11 +175,21 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     # Straightforward
     elif path.basename(fname).startswith('theta_jt') or path.basename(fname).startswith('temp_tt'):
         T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
-        T = 2.*sim.t_init - T*sim.t_scale
+
+        #----
+        # Temperature depends on environment
+        if sim.ocean_flag:
+            T = 2.*sim.t_init - T*sim.t_scale
+        else:
+            T = T*sim.t_scale
+        #----
+
+        #----
         if as_DA:
             T=sim.DataArray(T, dims=['x', 'y', 'z_u'])
             T.attrs=dict(long_name="Temperature", units="K")
         outlist = [T]
+        #----
     #---------
 
     #---------

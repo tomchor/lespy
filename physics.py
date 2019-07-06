@@ -138,7 +138,7 @@ def get_zi(wT, xy_axis=None, z_axis=0, simulation=None):
     """
     import numpy as np
     wT = np.asarray(wT)
-    if type(xy_axis) !=type(None):
+    if type(xy_axis) != type(None):
         z_idx = np.argmin(wT.mean(axis=xy_axis), axis=z_axis)
     else:
         z_idx = np.argmin(wT, axis=z_axis)
