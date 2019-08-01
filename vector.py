@@ -34,7 +34,7 @@ def div_2d(u, v, axes=(0,1)):
     div = nm.diff_fft(u, axis=axes[0]) + nm.diff_fft(v, axis=axes[1])
     return div
 
-def velgrad_tensor2d(u_vec, simulation=None, trim=True, as_DA=True):
+def velgrad_tensor2d(u_vec, simulation=None, trim=True, as_DA=True, real=True):
     """
     u_vec is a list with [u, v]
     u, v should be xarrays
@@ -47,7 +47,7 @@ def velgrad_tensor2d(u_vec, simulation=None, trim=True, as_DA=True):
     for i, (comp, comp_st) in enumerate(zip(u_vec, vec_st)):
         for j, dim_st in enumerate("xy"):
             print('R[{},{}] = {}_{}'.format(i, j, comp_st, dim_st))
-            R[i,j] = numerical.diff_fft_xr(comp, dim=dim_st)
+            R[i,j] = numerical.diff_fft_xr(comp, dim=dim_st, real=real)
             R[i,j].name = "d{}/d{}".format(comp_st, dim_st)
 
     if as_DA:

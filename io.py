@@ -35,7 +35,10 @@ def write_to_les(array, fname, simulation=None, **kwargs):
     Writes array into a file fname in a format that LES can easily understand
     """
     sim=simulation
-    array[sim.nx:] = 0.
+    try:
+        array[sim.nx:] = 0.
+    except:
+        pass
     array.T.tofile(fname, **kwargs)
     return
 
