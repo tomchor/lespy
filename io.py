@@ -1,4 +1,5 @@
-import numpy as _np
+import numpy as np
+import xarray as xr
 
 def empty_array(simulation, n_con=False, trimmed=True, nz_full=None):
     """ Creates an empty array with the shape dictated by simulation """
@@ -22,9 +23,9 @@ def empty_array(simulation, n_con=False, trimmed=True, nz_full=None):
     #----
     # Create blank array
     if n_con:
-        blank=_np.full((Nx, sim.ny, nz_full, sim.n_con), _np.nan, dtype=_np.float64)
+        blank=np.full((Nx, sim.ny, nz_full, sim.n_con), np.nan, dtype=np.float64)
     else:
-        blank=_np.full((Nx, sim.ny, nz_full), _np.nan, dtype=_np.float64)
+        blank=np.full((Nx, sim.ny, nz_full), np.nan, dtype=np.float64)
     #----
 
     return blank
@@ -50,7 +51,7 @@ def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kw
     for reading aver_PCon.out: dims=["ndtime", "z", "index"]
     """
     sim=simulation
-    aver=_np.loadtxt(fname, **kwargs)
+    aver=np.loadtxt(fname, **kwargs)
 
     #-----
     # If pcon file, the shape is different
@@ -65,7 +66,7 @@ def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kw
     # Get the actual averages (without ndtime)
     aver = aver[:,1:]
     if squeeze:
-        aver = _np.squeeze(aver)
+        aver = np.squeeze(aver)
     #-----
 
     #-----
@@ -240,7 +241,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     return outlist
 
 
-def fortran2xr(fname, vlist, padded=False, dtype=_np.float64, verbose=False):
+def fortran2xr(fname, vlist, padded=False, dtype=np.float64, verbose=False):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -292,7 +293,7 @@ def fortran2xr(fname, vlist, padded=False, dtype=_np.float64, verbose=False):
 
         #------
         # Read based on size of var, make it into DataArray and append
-        arr = _np.fromfile(bfile, dtype=idtype, count=_np.prod(shape)).reshape(shape, order='F')
+        arr = np.fromfile(bfile, dtype=idtype, count=np.prod(shape)).reshape(shape, order='F')
         dalist.append(xr.DataArray(arr, dims=vdict["dims"], coords=vdict["coords"]))
         #------
 
@@ -409,3 +410,102 @@ def readBinary2(fname, simulation=None, n_con=None, pcon_index='w_r',
     return outlist
 
 
+def readall_aver(outdir, sim=None, pcon_index="index", **kwargs):
+    """
+    Reads (almost) all output in the aver_*.out files.
+    Simulation argument is mandatory
+    """
+    pci = pcon_index
+
+    print("Reading averaged fluxes")
+    #------
+    # θ fluxes
+    wθ_res = read_aver(outdir+"/aver_wt.out", 
+                           simulation=sim, dims=["ndtime", "z_w"])*sim.u_scale*sim.t_scale
+    wθ_sgs = read_aver(outdir+"/aver_sgs_t3.out", 
+                           simulation=sim, dims=["ndtime", "z_w"])*sim.u_scale*sim.t_scale
+    #------
+
+    #------
+    # Covariances
+    uw_res = read_aver(outdir+"/aver_uw.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
+    vw_res = read_aver(outdir+"/aver_vw.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
+    ww_res = read_aver(outdir+"/aver_w2.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
+
+    uw_sgs = read_aver(outdir+"/aver_txz.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
+    vw_sgs = read_aver(outdir+"/aver_tyz.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
+    ww_sgs = read_aver(outdir+"/aver_tzz.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
+    #------
+
+    #------
+    # Change sign if it's ocean
+    if sim.ocean_flag:
+        uw_res = -uw_res; uw_sgs = -uw_sgs
+        vw_res = -vw_res; vw_sgs = -vw_sgs
+    #------
+
+    #------
+    # Scalar fluxes
+    if sim.pcon_flag:
+        wc_res = read_aver(outdir+"/aver_wPCon.out",
+                              simulation=sim, dims=["ndtime", "z_w", pci])*sim.u_scale*sim.pcon_scale
+        wc_sgs = read_aver(outdir+"/aver_sgs_PCon3.out",
+                              simulation=sim, dims=["ndtime", "z_w", pci])*sim.u_scale*sim.pcon_scale
+        if sim.ocean_flag:
+            wc_res = -wc_res; wc_sgs = -wc_sgs
+    #------
+
+
+    print("Reading averaged profiles")
+    #------
+    # Averaged profiles
+    u = read_aver(outdir+"/aver_u.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale
+    v = read_aver(outdir+"/aver_v.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale
+    w = read_aver(outdir+"/aver_w.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale
+    θ = read_aver(outdir+"/aver_theta.out", sim, dims=["ndtime", "z_u"])*sim.t_scale
+    if sim.pcon_flag:
+        C = read_aver(outdir+"/aver_PCon.out", sim, dims=["ndtime", "z_u", pci])*sim.pcon_scale
+    #------
+
+    print("Reading averaged derivatives")
+    #------
+    # Momentum means
+    dudz = read_aver(outdir+"/aver_dudz.out", simulation=sim, dims=["ndtime", "z_u"])*sim.u_scale/sim.z_i
+    dvdz = read_aver(outdir+"/aver_dvdz.out", simulation=sim, dims=["ndtime", "z_u"])*sim.u_scale/sim.z_i
+    dθdz = read_aver(outdir+"/aver_dTdz.out", simulation=sim, dims=["ndtime", "z_u"])*sim.t_scale/sim.z_i
+    if sim.pcon_flag:
+        dCdz = read_aver(outdir+"/aver_dPCondz.out", sim, dims=["ndtime", "z_u", pci])*sim.pcon_scale/sim.z_i
+    #------
+
+
+    print("Reading dissipation")
+    #------
+    # Dissipation
+    ε = read_aver(outdir+"/aver_dissip.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale**3/sim.z_i
+    #------
+
+    #------
+    uw = uw_res + uw_sgs
+    vw = vw_res + vw_sgs
+    ww = ww_res + ww_sgs
+    wθ = wθ_res + wθ_sgs
+    if sim.pcon_flag:
+        wc = wc_res + wc_sgs
+    #------
+
+    #------
+    # Prepare output
+    dsdict = dict(uw=uw, vw=vw, ww=ww, wθ=wθ, 
+                  uw_res=uw_res, vw_res=vw_res, ww_res=ww_res, wθ_res=wθ_res, 
+                  uw_sgs=uw_sgs, vw_sgs=vw_sgs, ww_sgs=ww_sgs, wθ_sgs=wθ_sgs, 
+                  ε=ε,
+                  u=u, v=v, w=w, θ=θ,
+                  dudz=dudz, dvdz=dvdz, dθdz=dθdz)
+    if sim.pcon_flag:
+        dsdict["wc_res"] = wc_res
+        dsdict["wc_sgs"] = wc_sgs
+        dsdict["wc"] = wc
+    dsout = xr.Dataset(dsdict)
+    #------
+
+    return dsout
