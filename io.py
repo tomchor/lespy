@@ -410,14 +410,14 @@ def readBinary2(fname, simulation=None, n_con=None, pcon_index='w_r',
     return outlist
 
 
-def readall_aver(outdir, sim=None, pcon_index="index", **kwargs):
+def readall_aver(outdir, sim=None, pcon_index="index", verbose=False, **kwargs):
     """
     Reads (almost) all output in the aver_*.out files.
     Simulation argument is mandatory
     """
     pci = pcon_index
 
-    print("Reading averaged fluxes")
+    if verbose: print("Reading averaged fluxes")
     #------
     # θ fluxes
     wθ_res = read_aver(outdir+"/aver_wt.out", 
@@ -456,29 +456,27 @@ def readall_aver(outdir, sim=None, pcon_index="index", **kwargs):
     #------
 
 
-    print("Reading averaged profiles")
+    if verbose: print("Reading averaged profiles")
     #------
     # Averaged profiles
     u = read_aver(outdir+"/aver_u.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale
     v = read_aver(outdir+"/aver_v.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale
-    w = read_aver(outdir+"/aver_w.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale
+    w = read_aver(outdir+"/aver_w.out", simulation=sim, dims=["ndtime", "z_w",])*sim.u_scale
     θ = read_aver(outdir+"/aver_theta.out", sim, dims=["ndtime", "z_u"])*sim.t_scale
     if sim.pcon_flag:
         C = read_aver(outdir+"/aver_PCon.out", sim, dims=["ndtime", "z_u", pci])*sim.pcon_scale
     #------
 
-    print("Reading averaged derivatives")
+    if verbose: print("Reading averaged derivatives")
     #------
     # Momentum means
-    dudz = read_aver(outdir+"/aver_dudz.out", simulation=sim, dims=["ndtime", "z_u"])*sim.u_scale/sim.z_i
-    dvdz = read_aver(outdir+"/aver_dvdz.out", simulation=sim, dims=["ndtime", "z_u"])*sim.u_scale/sim.z_i
-    dθdz = read_aver(outdir+"/aver_dTdz.out", simulation=sim, dims=["ndtime", "z_u"])*sim.t_scale/sim.z_i
-    if sim.pcon_flag:
-        dCdz = read_aver(outdir+"/aver_dPCondz.out", sim, dims=["ndtime", "z_u", pci])*sim.pcon_scale/sim.z_i
+    dudz = read_aver(outdir+"/aver_dudz.out", simulation=sim, dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
+    dvdz = read_aver(outdir+"/aver_dvdz.out", simulation=sim, dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
+    dθdz = read_aver(outdir+"/aver_dTdz.out", simulation=sim, dims=["ndtime", "z_w"])*sim.t_scale/sim.z_i
     #------
 
 
-    print("Reading dissipation")
+    if verbose: print("Reading dissipation")
     #------
     # Dissipation
     ε = read_aver(outdir+"/aver_dissip.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale**3/sim.z_i
@@ -495,17 +493,20 @@ def readall_aver(outdir, sim=None, pcon_index="index", **kwargs):
 
     #------
     # Prepare output
-    dsdict = dict(uw=uw, vw=vw, ww=ww, wθ=wθ, 
-                  uw_res=uw_res, vw_res=vw_res, ww_res=ww_res, wθ_res=wθ_res, 
-                  uw_sgs=uw_sgs, vw_sgs=vw_sgs, ww_sgs=ww_sgs, wθ_sgs=wθ_sgs, 
-                  ε=ε,
-                  u=u, v=v, w=w, θ=θ,
-                  dudz=dudz, dvdz=dvdz, dθdz=dθdz)
+    dict_unode = dict(ε=ε,
+                      u=u, v=v, θ=θ,)
+    dict_wnode = dict(w=w, 
+                      uw=uw, vw=vw, ww=ww, wθ=wθ, 
+                      uw_res=uw_res, vw_res=vw_res, ww_res=ww_res, wθ_res=wθ_res, 
+                      uw_sgs=uw_sgs, vw_sgs=vw_sgs, ww_sgs=ww_sgs, wθ_sgs=wθ_sgs, 
+                      dudz=dudz, dvdz=dvdz, dθdz=dθdz)
     if sim.pcon_flag:
-        dsdict["wc_res"] = wc_res
-        dsdict["wc_sgs"] = wc_sgs
-        dsdict["wc"] = wc
-    dsout = xr.Dataset(dsdict)
+        dict_wnode["wc_res"] = wc_res
+        dict_wnode["wc_sgs"] = wc_sgs
+        dict_wnode["wc"] = wc
+        dict_unode["C"] = C
+    ds_unode = xr.Dataset(dict_unode)
+    ds_wnode = xr.Dataset(dict_wnode)
     #------
 
-    return dsout
+    return ds_unode, ds_wnode
