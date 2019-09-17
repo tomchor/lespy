@@ -1,3 +1,4 @@
+import numpy as np
 
 def integrate(arr, axis=0, dx=1., chunks=1):
     """
@@ -194,5 +195,33 @@ def _correlate(in1, in2, mode="full", axis=0):
     else:
         raise ValueError("Acceptable mode flags are 'valid',"
                          " 'same', or 'full'.")
+
+
+def diff_z(da, n=1, z_final=None):
+    """ n-th order derivative according to LES rules """
+    #----
+    # Get z-dependentr variables
+    z = da.z.values
+    Δz = np.diff(z).mean()
+    #----
+
+    #----
+    # Get final z recursively
+    da_z = da.diff("z", n) / Δz
+    for ni in range(1,n+1):
+        z = (z[1:] + z[:-1])/2
+    #----
+
+    #----
+    # Re-sets the z corrd if it's good and return deriv
+    if z_final is not None:
+        if np.allclose(z, z_final):
+            da_z = da_z.assign_coords(z=z_final)
+        else:
+            raise AssertionError
+    else:
+        da_z = da_z.assign_coords(z=z)
+    return da_z
+    #----
 
 

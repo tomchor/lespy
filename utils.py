@@ -438,6 +438,17 @@ def nearest(array, values, return_idx=False):
 
 
 
+
+def unique_xr(da, dim="time"):
+    """ Removes nonunique values from dim """
+    _, index = np.unique(da[dim], return_index=True)
+    da = da.isel(**{dim:index})
+    return da
+
+
+
+
+
 from matplotlib.colors import LinearSegmentedColormap as _lin_cmap
 
 cdict1 = {'red':   ((0.0, 0.0, 0.0),

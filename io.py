@@ -44,7 +44,7 @@ def write_to_les(array, fname, simulation=None, **kwargs):
     return
 
 
-def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kwargs):
+def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], unique=None, **kwargs):
     """
     Reads aver_* files from LES
 
@@ -76,6 +76,12 @@ def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kw
         aver = utils.get_DA(aver, simulation=sim, dims=dims, time=ndtimes)
     #-----
 
+    #-----
+    if (unique is not None):
+        from . import utils
+        aver = utils.unique_xr(aver, dim="ndtime")
+    #-----
+
     if return_times:
         return ndtimes, aver
     else:
@@ -83,7 +89,8 @@ def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], **kw
 
 
 
-def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon_index='w_r', nz=None, nz_full=None):
+def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, 
+               pcon_index='index', nz=None, nz_full=None, dtype=np.float64):
     """
     Reads a binary file according to the simulation or domain object passed
 
@@ -139,6 +146,13 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     #---------
 
     #---------
+    if dtype==np.float64:
+        byteprec = 8
+    elif dtype==np.float32:
+        byteprec = 4
+    #---------
+
+    #---------
     bfile = open(fname, 'rb')
     #---------
 
@@ -164,8 +178,8 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
         p_nd = u_nd*n_con
         pcon = []
         for i in range(n_con):
-            bfile.seek(8*i*(u_nd+u_fill))
-            pcon.append(np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F'))
+            bfile.seek(byteprec*i*(u_nd+u_fill))
+            pcon.append(np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F'))
         pcon = np.stack(pcon, axis=-1)
         #pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.nx, domain.ny, domain.nz_tot, n_con), order='F')
         pcon *= sim.pcon_scale
@@ -199,11 +213,11 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True, pcon
     #---------
     # Straightforward
     elif path.basename(fname).startswith('uvw_jt') or path.basename(fname).startswith('vel_tt'):
-        u = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
-        bfile.seek(8*(u_nd+u_fill))
-        v = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
-        bfile.seek(16*(u_nd+u_fill))
-        w = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
+        u = np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
+        bfile.seek(byteprec*(u_nd+u_fill))
+        v = np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
+        bfile.seek(2*byteprec*(u_nd+u_fill))
+        w = np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
         u = u*sim.u_scale
         v = v*sim.u_scale
         w =-w*sim.u_scale
@@ -380,7 +394,9 @@ def readBinary2(fname, simulation=None, n_con=None, pcon_index='w_r',
         vdict["w"]["jumpto"] = sim.nx*sim.ny*nz_full*8*2
         vlist = [vdict["u"], vdict["v"], vdict["w"],] 
         u,v,w = fortran2xr(fname, vlist, padded=padded, dtype=np.float64)
-        u = u*sim.u_scale; v = v*sim.u_scale; w =-w*sim.u_scale
+        u = u*sim.u_scale; v = v*sim.u_scale; w =w*sim.u_scale
+        if sim.ocean_flag:
+            w = -w
 
         u.attrs=dict(long_name="$u$", units="m/s")
         v.attrs=dict(long_name="$v$", units="m/s")
@@ -410,31 +426,39 @@ def readBinary2(fname, simulation=None, n_con=None, pcon_index='w_r',
     return outlist
 
 
-def readall_aver(outdir, sim=None, pcon_index="index", verbose=False, **kwargs):
+def readall_aver(outdir, sim=None, pcon_index="index", verbose=False, 
+                 unique="ndtime", **kwargs):
     """
     Reads (almost) all output in the aver_*.out files.
     Simulation argument is mandatory
     """
     pci = pcon_index
+    read_aver2 = lambda f, **kwargs: read_aver(f, simulation=sim, unique=unique, **kwargs)
 
     if verbose: print("Reading averaged fluxes")
     #------
     # θ fluxes
-    wθ_res = read_aver(outdir+"/aver_wt.out", 
-                           simulation=sim, dims=["ndtime", "z_w"])*sim.u_scale*sim.t_scale
-    wθ_sgs = read_aver(outdir+"/aver_sgs_t3.out", 
-                           simulation=sim, dims=["ndtime", "z_w"])*sim.u_scale*sim.t_scale
+    wθ_res = read_aver2(outdir+"/aver_wt.out", 
+                           dims=["ndtime", "z_w"])*sim.u_scale*sim.t_scale
+    wθ_sgs = read_aver2(outdir+"/aver_sgs_t3.out", 
+                           dims=["ndtime", "z_w"])*sim.u_scale*sim.t_scale
     #------
 
     #------
     # Covariances
-    uw_res = read_aver(outdir+"/aver_uw.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
-    vw_res = read_aver(outdir+"/aver_vw.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
-    ww_res = read_aver(outdir+"/aver_w2.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
+    uw_res = read_aver2(outdir+"/aver_uw.out", dims=["ndtime", "z_w"])*sim.u_scale**2
+    vw_res = read_aver2(outdir+"/aver_vw.out", dims=["ndtime", "z_w"])*sim.u_scale**2
 
-    uw_sgs = read_aver(outdir+"/aver_txz.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
-    vw_sgs = read_aver(outdir+"/aver_tyz.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
-    ww_sgs = read_aver(outdir+"/aver_tzz.out", sim, dims=["ndtime", "z_w"])*sim.u_scale**2
+    u2_res = read_aver2(outdir+"/aver_u2.out", dims=["ndtime", "z_u"])*sim.u_scale**2
+    v2_res = read_aver2(outdir+"/aver_v2.out", dims=["ndtime", "z_u"])*sim.u_scale**2
+    w2_res = read_aver2(outdir+"/aver_w2.out", dims=["ndtime", "z_w"])*sim.u_scale**2
+
+    uw_sgs = read_aver2(outdir+"/aver_txz.out", dims=["ndtime", "z_w"])*sim.u_scale**2
+    vw_sgs = read_aver2(outdir+"/aver_tyz.out", dims=["ndtime", "z_w"])*sim.u_scale**2
+
+    u2_sgs = read_aver2(outdir+"/aver_txx.out", dims=["ndtime", "z_u"])*sim.u_scale**2
+    v2_sgs = read_aver2(outdir+"/aver_tyy.out", dims=["ndtime", "z_u"])*sim.u_scale**2
+    w2_sgs = read_aver2(outdir+"/aver_tzz.out", dims=["ndtime", "z_w"])*sim.u_scale**2
     #------
 
     #------
@@ -447,10 +471,10 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False, **kwargs):
     #------
     # Scalar fluxes
     if sim.pcon_flag:
-        wc_res = read_aver(outdir+"/aver_wPCon.out",
-                              simulation=sim, dims=["ndtime", "z_w", pci])*sim.u_scale*sim.pcon_scale
-        wc_sgs = read_aver(outdir+"/aver_sgs_PCon3.out",
-                              simulation=sim, dims=["ndtime", "z_w", pci])*sim.u_scale*sim.pcon_scale
+        wc_res = read_aver2(outdir+"/aver_wPCon.out",
+                              dims=["ndtime", "z_w", pci])*sim.u_scale*sim.pcon_scale
+        wc_sgs = read_aver2(outdir+"/aver_sgs_PCon3.out",
+                              dims=["ndtime", "z_w", pci])*sim.u_scale*sim.pcon_scale
         if sim.ocean_flag:
             wc_res = -wc_res; wc_sgs = -wc_sgs
     #------
@@ -459,34 +483,40 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False, **kwargs):
     if verbose: print("Reading averaged profiles")
     #------
     # Averaged profiles
-    u = read_aver(outdir+"/aver_u.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale
-    v = read_aver(outdir+"/aver_v.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale
-    w = read_aver(outdir+"/aver_w.out", simulation=sim, dims=["ndtime", "z_w",])*sim.u_scale
-    θ = read_aver(outdir+"/aver_theta.out", sim, dims=["ndtime", "z_u"])*sim.t_scale
+    u = read_aver2(outdir+"/aver_u.out", dims=["ndtime", "z_u",])*sim.u_scale
+    v = read_aver2(outdir+"/aver_v.out", dims=["ndtime", "z_u",])*sim.u_scale
+    w = read_aver2(outdir+"/aver_w.out", dims=["ndtime", "z_w",])*sim.u_scale
+    θ = read_aver2(outdir+"/aver_theta.out", dims=["ndtime", "z_u"])*sim.t_scale
     if sim.pcon_flag:
-        C = read_aver(outdir+"/aver_PCon.out", sim, dims=["ndtime", "z_u", pci])*sim.pcon_scale
+        C = read_aver2(outdir+"/aver_PCon.out", dims=["ndtime", "z_u", pci])*sim.pcon_scale
     #------
 
     if verbose: print("Reading averaged derivatives")
+
     #------
-    # Momentum means
-    dudz = read_aver(outdir+"/aver_dudz.out", simulation=sim, dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
-    dvdz = read_aver(outdir+"/aver_dvdz.out", simulation=sim, dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
-    dθdz = read_aver(outdir+"/aver_dTdz.out", simulation=sim, dims=["ndtime", "z_w"])*sim.t_scale/sim.z_i
+    # Derivatives
+    dudz = read_aver2(outdir+"/aver_dudz.out", dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
+    dvdz = read_aver2(outdir+"/aver_dvdz.out", dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
+    dθdz = read_aver2(outdir+"/aver_dTdz.out", dims=["ndtime", "z_w"])*sim.t_scale/sim.z_i
+    if sim.pcon_flag:
+        dC0dz = read_aver2(outdir+"/aver_dPCondz.out", dims=["ndtime", "z_w", pci])*sim.pcon_scale/sim.z_i
     #------
 
 
     if verbose: print("Reading dissipation")
     #------
     # Dissipation
-    ε = read_aver(outdir+"/aver_dissip.out", simulation=sim, dims=["ndtime", "z_u",])*sim.u_scale**3/sim.z_i
+    ε = read_aver2(outdir+"/aver_dissip.out", dims=["ndtime", "z_u",])*sim.u_scale**3/sim.z_i
     #------
 
     #------
     uw = uw_res + uw_sgs
     vw = vw_res + vw_sgs
-    ww = ww_res + ww_sgs
     wθ = wθ_res + wθ_sgs
+
+    u2 = u2_res + u2_sgs
+    v2 = v2_res + v2_sgs
+    w2 = w2_res + w2_sgs
     if sim.pcon_flag:
         wc = wc_res + wc_sgs
     #------
@@ -494,16 +524,22 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False, **kwargs):
     #------
     # Prepare output
     dict_unode = dict(ε=ε,
-                      u=u, v=v, θ=θ,)
+                      u=u, v=v, θ=θ, 
+                      u2=u2, v2=v2,
+                      u2_res=u2_res, v2_res=v2_res,
+                      u2_sgs=u2_sgs, v2_sgs=v2_sgs,
+                      )
     dict_wnode = dict(w=w, 
-                      uw=uw, vw=vw, ww=ww, wθ=wθ, 
-                      uw_res=uw_res, vw_res=vw_res, ww_res=ww_res, wθ_res=wθ_res, 
-                      uw_sgs=uw_sgs, vw_sgs=vw_sgs, ww_sgs=ww_sgs, wθ_sgs=wθ_sgs, 
-                      dudz=dudz, dvdz=dvdz, dθdz=dθdz)
+                      uw=uw, vw=vw, w2=w2, wθ=wθ, 
+                      uw_res=uw_res, vw_res=vw_res, w2_res=w2_res, wθ_res=wθ_res, 
+                      uw_sgs=uw_sgs, vw_sgs=vw_sgs, w2_sgs=w2_sgs, wθ_sgs=wθ_sgs, 
+                      dudz=dudz, dvdz=dvdz, dθdz=dθdz,
+                      )
     if sim.pcon_flag:
         dict_wnode["wc_res"] = wc_res
         dict_wnode["wc_sgs"] = wc_sgs
         dict_wnode["wc"] = wc
+        dict_wnode["dC0dz"] = dC0dz
         dict_unode["C"] = C
     ds_unode = xr.Dataset(dict_unode)
     ds_wnode = xr.Dataset(dict_wnode)

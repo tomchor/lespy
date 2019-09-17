@@ -80,7 +80,7 @@ class Output(object):
 
     def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None,
                      apply_to_z=False, z_function=lambda x: x[:,:,0], 
-                     chunksize=None, pcon_index="w_r", 
+                     chunksize=None, pcon_index="index", 
                      dtype=None, nz=None, nz_full=None):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
