@@ -220,7 +220,9 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
         w = np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
         u = u*sim.u_scale
         v = v*sim.u_scale
-        w =-w*sim.u_scale
+        w = w*sim.u_scale
+        if sim.ocean_flag:
+            w = -w
         if as_DA:
             u=sim.DataArray(u, dims=['x', 'y', 'z_u'])
             v=sim.DataArray(v, dims=['x', 'y', 'z_u'])
@@ -394,7 +396,7 @@ def readBinary2(fname, simulation=None, n_con=None, pcon_index='w_r',
         vdict["w"]["jumpto"] = sim.nx*sim.ny*nz_full*8*2
         vlist = [vdict["u"], vdict["v"], vdict["w"],] 
         u,v,w = fortran2xr(fname, vlist, padded=padded, dtype=np.float64)
-        u = u*sim.u_scale; v = v*sim.u_scale; w =w*sim.u_scale
+        u = u*sim.u_scale; v = v*sim.u_scale; w = w*sim.u_scale
         if sim.ocean_flag:
             w = -w
 
