@@ -29,6 +29,7 @@ class Output(object):
         else:
             print('No wildcards')
             raise Exception
+        self.oppath = oppath
         #----------
 
         print('Starting to read output as ', end='')
@@ -411,15 +412,94 @@ class Output(object):
         return u0, v0
 
 
-    def _compose_par(self, nprocs=10, t_ini=None, t_end=None, **kwargs):
-        import multiprocessing
-        from multiprocessing import Pool
-        bounds = [t_ini, t_end]
-        def par_compose_uvwT(x):
-            return out.compose_uvwT(simulation=sim, t_ini=x[0], t_end=x[1], **kwargs)
-        pool = Pool(processes=nprocs)
-        outs = pool.map(par_compose_uvwT, bounds)
-        return zip(*outs)
+    def compose_var(self, simulation=None, name="", times=None, t_ini=0, t_end=None,
+                    apply_to_z=False, z_function=lambda x: x[:,:,0], 
+                    chunksize=None,
+                    dtype=None, nz=None, nz_full=None):
+        """
+        Puts together everything in time
+        Output array indexes are
+        time, x, y, z
+
+        Parameters
+        ----------
+        self: lp.Output
+        times: slice
+            slice with which times to read.
+        simulation: lp.Simulation
+            to be used as base
+        """
+        from .. import utils, routines, io
+        import numpy as np
+        import xarray as xr
+        import pandas as pd
+        from glob import glob
+        from os import path
+
+        if simulation:
+            sim=simulation
+        else:
+            raise ValueError("You need to provide a simulation object here")
+
+        #----------
+        # list name_jt files
+        name_jt = sorted(glob(path.join(self.oppath, f'{name}_jt*bin')))
+        if name_jt: print(f'{name}_jt', end=' ')
+        ndtime = np.vectorize(utils.nameParser)(name_jt)
+        bins = pd.Series(data=name_jt, index=ndtime)
+        #--------------
+
+        #--------------
+        # Adjust intervals
+        if type(times)!=type(None):
+            bins = bins.loc[times]
+        else:
+            if t_end is None:
+                bins = bins.loc[t_ini:]
+            else:
+                bins = bins.loc[t_ini:t_end]
+        #--------------
+ 
+        #---------
+        # Definition of output with time, x, y[ and z]
+        if type(nz)==type(None):
+            nz=sim.domain.nz_tot-1
+        #---------
+
+        #---------
+        # Iterate between uvw_jt files
+        var = []
+        for i,col in enumerate(bins):
+            if not isinstance(col, str): continue
+            print(i, col)
+            aux = io.readBinary(col, simulation=sim, as_DA=True, nz=nz, nz_full=nz_full)
+
+            #------
+            # Reduce z coordinate if theres a z_function
+            if apply_to_z:
+                aux = [ z_function(el) for el in aux ]
+            #------
+
+            var.append(aux)
+            #---------
+        #---------
+
+        #---------
+        # Passes from numpy.array to xarray.DataArray, so that the coordinates go with the data
+        out = xr.concat(var, dim="itime").assign_coords(itime=bins.index.tolist())
+        from ..utils import add_units
+        out = add_units(out)
+        if chunksize is not None:
+            print("Chunking with dask")
+            out = out.chunk(dict(itime=chunksize))
+
+        #---------
+
+        return out
+
+
+
+
 
 
 class Output_sp(object):

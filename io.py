@@ -236,6 +236,20 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
     #---------
 
     #---------
+    # Straightforward
+    elif path.basename(fname).startswith('nu_jt'):
+        nu = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
+        nu = nu * (sim.u_scale*sim.z_i)
+
+        #----
+        if as_DA:
+            nu=sim.DataArray(nu, dims=['x', 'y', 'z_u'])
+            nu.attrs=dict(long_name="SGS viscosity", units="m**2/s")
+        outlist = [nu]
+        #----
+    #---------
+
+    #---------
     # Spectra
     elif path.basename(fname).startswith('spec_uvwT'):
         ndz=4*(domain.nx//2)*(domain.nz_tot-1)
