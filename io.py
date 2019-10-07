@@ -170,25 +170,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
     if fname.endswith('.bin'): bfile.read(4)
     #--------------
     
-    #---------
-    # Straightforward
-    if path.basename(fname).startswith('pcon'):
-        if n_con==None:
-            n_con = sim.n_con
-        p_nd = u_nd*n_con
-        pcon = []
-        for i in range(n_con):
-            bfile.seek(byteprec*i*(u_nd+u_fill))
-            pcon.append(np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F'))
-        pcon = np.stack(pcon, axis=-1)
-        #pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.nx, domain.ny, domain.nz_tot, n_con), order='F')
-        pcon *= sim.pcon_scale
-        if as_DA:
-            pcon=sim.DataArray(pcon, dims=['x', 'y', 'z_u', pcon_index])
-            pcon.attrs=dict(long_name="$C$", units="kg/m$^3$")
-        outlist = [pcon]
-    #---------
-    
+   
     #---------
     # Straightforward
     elif path.basename(fname).startswith('theta_jt') or path.basename(fname).startswith('temp_tt'):
@@ -248,6 +230,47 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
         outlist = [nu]
         #----
     #---------
+
+    #---------
+    # Straightforward
+    if path.basename(fname).startswith('pcon_jt'):
+        if n_con==None:
+            n_con = sim.n_con
+        p_nd = u_nd*n_con
+        pcon = []
+        for i in range(n_con):
+            bfile.seek(byteprec*i*(u_nd+u_fill))
+            pcon.append(np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F'))
+        pcon = np.stack(pcon, axis=-1)
+        #pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.nx, domain.ny, domain.nz_tot, n_con), order='F')
+        pcon *= sim.pcon_scale
+        if as_DA:
+            pcon=sim.DataArray(pcon, dims=['x', 'y', 'z_u', pcon_index])
+            pcon.attrs=dict(long_name="$C$", units="kg/m$^3$")
+        outlist = [pcon]
+    #---------
+
+
+
+    #---------
+    # Straightforward
+    if path.basename(fname).startswith('wc_jt'):
+        if n_con==None:
+            n_con = sim.n_con
+        p_nd = u_nd*n_con
+        wc = []
+        for i in range(n_con):
+            bfile.seek(byteprec*i*(u_nd+u_fill))
+            wc.append(np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F'))
+        wc = np.stack(wc, axis=-1)
+        wc *= sim.pcon_scale * sim.u_scale
+        if as_DA:
+            wc=sim.DataArray(wc, dims=['x', 'y', 'z_u', pcon_index])
+            wc.attrs=dict(long_name="$wc$", units="kg/m$^3$ * m/s")
+        outlist = [wc]
+    #---------
+ 
+
 
     #---------
     # Spectra
