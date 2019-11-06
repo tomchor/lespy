@@ -444,7 +444,7 @@ class Output(object):
         #----------
         # list name_jt files
         name_jt = sorted(glob(path.join(self.oppath, f'{name}_jt*bin')))
-        if name_jt: print(f'{name}_jt', end=' ')
+        if name_jt: print(f'Reading {name}_jt files')
         ndtime = np.vectorize(utils.nameParser)(name_jt)
         bins = pd.Series(data=name_jt, index=ndtime)
         #--------------

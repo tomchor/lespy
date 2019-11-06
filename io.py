@@ -173,7 +173,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
    
     #---------
     # Straightforward
-    elif path.basename(fname).startswith('theta_jt') or path.basename(fname).startswith('temp_tt'):
+    elif path.basename(fname).startswith('theta_') or path.basename(fname).startswith('temp_tt'):
         T = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
 
         #----
@@ -194,7 +194,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
 
     #---------
     # Straightforward
-    elif path.basename(fname).startswith('uvw_jt') or path.basename(fname).startswith('vel_tt'):
+    elif path.basename(fname).startswith('uvw_') or path.basename(fname).startswith('vel_tt'):
         u = np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
         bfile.seek(byteprec*(u_nd+u_fill))
         v = np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
@@ -219,7 +219,7 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
 
     #---------
     # Straightforward
-    elif path.basename(fname).startswith('nu_jt'):
+    elif path.basename(fname).startswith('nu_'):
         nu = np.fromfile(bfile, dtype=np.float64, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F')
         nu = nu * (sim.u_scale*sim.z_i)
 
@@ -265,11 +265,10 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
         wc = np.stack(wc, axis=-1)
         wc *= sim.pcon_scale * sim.u_scale
         if as_DA:
-            wc=sim.DataArray(wc, dims=['x', 'y', 'z_u', pcon_index])
+            wc=sim.DataArray(wc, dims=['x', 'y', 'z_w', pcon_index])
             wc.attrs=dict(long_name="$wc$", units="kg/m$^3$ * m/s")
         outlist = [wc]
     #---------
- 
 
 
     #---------
