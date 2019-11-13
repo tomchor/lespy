@@ -113,6 +113,115 @@ class Simulation(object):
 
 
 
+class hSimulation(object):
+    """class for simulation parameters"""
+    def __init__(self, from_file=None, domain=None, timelength=None, inversion_depth=None, **kwargs):
+        import numpy as np
+        from .. import physics
+        from ..utils import paramParser, find_in_tree, nameParser
+        from .dmClass import hDomain as hDom
+
+        #------------
+        # Start simulation from param.nml file
+        if isinstance(from_file, str):
+            params = paramParser(from_file)
+            self.__dict__.update(params)
+        else:
+            raise ValueError('fromfile keyword should be path to param.nml')
+        #-----
+
+        #-----
+        dmn = hDom(nx=params['nx'], ny=params['ny'], nz=params['nz_tot'],
+                   lx=params['lx_tot'], ly=params['ly_tot'], lz=params['lz_tot'],
+                   environment=params['environment'])
+        self.domain = dmn
+        #-----
+
+        #-----
+        if self.environment=="ocean":
+            self.ocean_flag=True
+        else:
+            self.ocean_flag=False
+        self.inversion_depth = self.z_i * self.prop_mixed
+        #-----
+
+        #-----
+        self.w_star = self.get_w_star()
+        self.vel_settling = np.array(self.vel_settling)
+        self.droplet_sizes = physics.get_dropletSize(self.vel_settling, nominal=True, nowarning=True).astype(int)
+        if type(self.droplet_sizes)!=np.ndarray:
+            self.droplet_sizes=np.array([self.droplet_sizes])
+        #-----
+
+        #-----
+        # Make backwards compatible with older version of code
+        try:
+            self.s_flag=self.theta_flag
+        except AttributeError:
+            self.theta_flag=self.s_flag
+        #-----
+
+        #-----
+        # Make it easy to access resolution
+        self.Δx=self.domain.dx
+        self.Δy=self.domain.dy
+        self.Δz=self.domain.dz
+        #-----
+
+
+    def check(self, full=True):
+        """
+        Check important characteristics of the simulation
+        """
+        CFL_x=self.u_scale*self.dt/self.domain.dx
+        print('CFL (u_scale*dt/dx)          : {:.2e}'.format(CFL_x))
+        print('dx/dz                        : {:2.1f}\t\t{}'.format(self.domain.dx/self.domain.dz,'-- Should be < 5 in practice'))
+        print('lx/z_inv                     : {:2.1f}\t\t{}'.format(self.domain.lx/self.inversion_depth,'-- Should be > 6. At *least* 4.'))
+        divs = []
+        for i in range(2,140):
+            if self.domain.nz%i == 0:
+                divs.append(i)
+        print('Nz = {:03d} and is divisible by : {}'.format(self.domain.nz, divs))
+        if full:
+            print('Coriolis timescale           : {:1.1e} timesteps'.format(int(1./self.freq_coriolis/self.dt)))
+
+    def get_w_star(self):
+        """Calculates the convective scale"""
+        from .. import physics as phys
+        return phys.w_star(self)
+
+
+    def DataArray(self, array, **kwargs):
+        """
+        Creates a DataArray specifically for this simulation.
+        
+        Currently does not work with xarray yet because of different domain.
+        """
+        #import xarray as xr
+        from ..utils import get_DA
+        da = get_DA(array, simulation=self, **kwargs)
+        return da
+
+    def to_hours(self, timesteps, to_label=False):
+        """Transforms from simulation timesteps to hours"""
+        out = timesteps*self.dt/(60*60)
+        if to_label:
+            out = [ '{:.2f} hours'.format(el) for el in out ]
+        return out
+
+    def __str__(self):
+        buff='Simulation Parameters\n'+ '-'*21
+        buff += '\nEndless    : {}\n'.format(self.flag_endless)
+        buff += 'dt:        : {} s\n'.format(self.dt)
+        buff+= self.domain.__str__()
+        return buff
+    def __repr__(self):
+        aux = """<lespy.Simulation object>. Domain: {}""".format(self.domain.__repr__())
+        return aux
+
+
+
+
 
 class Simulation_sp(object):
     """class for simulation parameters"""
@@ -331,6 +440,7 @@ def sim_from_file(namelist, tlength_from_ke=False, check_ke_file=None, params=No
     """Reads and parses namelist and then calls Simulation class"""
     from ..utils import paramParser, find_in_tree, nameParser
     from .dmClass import Domain as Dom
+    from .dmClass import hDomain as hDom
     from os import path
 
     #---------
@@ -342,9 +452,9 @@ def sim_from_file(namelist, tlength_from_ke=False, check_ke_file=None, params=No
                   lx=params['lx'], ly=params['ly'], lz=params['lz_tot'],
                   ocean_flag=params['ocean_flag'])
     except KeyError:
-        dmn = Dom(nx=params['nx'], ny=params['ny'], nz=params['nz_tot'], nz_tot=params['nz_tot'],
-                  lx=params['lx_tot'], ly=params['ly_tot'], lz=params['lz_tot'],
-                  ocean_flag=params['ocean_flag'])
+        dmn = hDom(nx=params['nx'], ny=params['ny'], nz=params['nz_tot'],
+                   lx=params['lx_tot'], ly=params['ly_tot'], lz=params['lz_tot'],
+                   environment=params['environment'])
     #---------
     
     #---------
