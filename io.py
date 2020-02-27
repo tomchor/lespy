@@ -533,11 +533,11 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False,
 
     #------
     # Derivatives
-    dudz = read_aver2(outdir+"/aver_dudz.out", dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
-    dvdz = read_aver2(outdir+"/aver_dvdz.out", dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
-    dθdz = read_aver2(outdir+"/aver_dTdz.out", dims=["ndtime", "z_w"])*sim.t_scale/sim.z_i
-    if sim.pcon_flag:
-        dC0dz = read_aver2(outdir+"/aver_dPCondz.out", dims=["ndtime", "z_w", pci])*sim.pcon_scale/sim.z_i
+#    dudz = read_aver2(outdir+"/aver_dudz.out", dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
+#    dvdz = read_aver2(outdir+"/aver_dvdz.out", dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
+#    dθdz = read_aver2(outdir+"/aver_dTdz.out", dims=["ndtime", "z_w"])*sim.t_scale/sim.z_i
+#    if sim.pcon_flag:
+#        dC0dz = read_aver2(outdir+"/aver_dPCondz.out", dims=["ndtime", "z_w", pci])*sim.pcon_scale/sim.z_i
     #------
 
 
@@ -571,13 +571,13 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False,
                       uw=uw, vw=vw, w2=w2, wθ=wθ, 
                       uw_res=uw_res, vw_res=vw_res, w2_res=w2_res, wθ_res=wθ_res, 
                       uw_sgs=uw_sgs, vw_sgs=vw_sgs, w2_sgs=w2_sgs, wθ_sgs=wθ_sgs, 
-                      dudz=dudz, dvdz=dvdz, dθdz=dθdz,
+#                      dudz=dudz, dvdz=dvdz, dθdz=dθdz,
                       )
     if sim.pcon_flag:
         dict_wnode["wc_res"] = wc_res
         dict_wnode["wc_sgs"] = wc_sgs
         dict_wnode["wc"] = wc
-        dict_wnode["dC0dz"] = dC0dz
+#        dict_wnode["dC0dz"] = dC0dz
         dict_unode["C"] = C
     ds_unode = xr.Dataset(dict_unode)
     ds_wnode = xr.Dataset(dict_wnode)
