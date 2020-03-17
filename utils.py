@@ -448,6 +448,33 @@ def unique_xr(da, dim="time"):
 
 
 
+def fix_E(fname, ftemp):
+    """ 
+    Fixes poor fortran formatting where it prints numbers
+    without the E in exponential format.
+    
+    ftemp should prefferably be a temporary file.
+    """
+    import re
+
+    #------
+    # Define function that replaces the number before "-" with an E
+    def repl(match): 
+        match = str(match.group()) 
+        return match.replace(match[0], "E", 1)
+    #------
+
+    #------
+    # Find instances of number followed by "-" followed by number
+    # and replace it using the previously created function
+    fin = open(fname, "rt").read()
+    fin2 = re.sub("[0-9]-[0-9]", repl, fin)
+    #------
+
+    ftemp.write(fin2)
+    ftemp.seek(0)
+    return
+
 
 from matplotlib.colors import LinearSegmentedColormap as _lin_cmap
 

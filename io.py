@@ -50,8 +50,16 @@ def read_aver(fname, simulation, squeeze=True, return_times=False, dims=[], uniq
 
     for reading aver_PCon.out: dims=["ndtime", "z", "index"]
     """
+    import tempfile
+    from .utils import fix_E
     sim=simulation
-    aver=np.loadtxt(fname, **kwargs)
+
+    #-----
+    # Read file with the fix for wrong fortran formatting
+    with tempfile.TemporaryFile("r+t") as ftemp:
+        fix_E(fname, ftemp)
+        aver=np.loadtxt(ftemp, **kwargs)
+    #-----
 
     #-----
     # If pcon file, the shape is different
