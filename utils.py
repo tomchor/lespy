@@ -242,7 +242,7 @@ def np2vtr(arrays, outname):
     return
 
 
-def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
+def get_DA(array, simulation=None, dims=None, time=False, n_con=None, **kwargs):
     """
     Gets a dataarray from pcons
     
@@ -253,6 +253,8 @@ def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
     """
     import xarray as xr
     sim = simulation
+    if n_con is None:
+        n_con=sim.n_con
 
     if 'time' in dims:
         if type(time)!=type(None):
@@ -283,7 +285,7 @@ def get_DA(array, simulation=None, dims=None, time=False, **kwargs):
         elif dim=='w_r':
             coords['w_r'] = sim.vel_settling
         elif dim=="index":
-            coords["index"] = np.arange(0,sim.n_con)
+            coords["index"] = np.arange(0, n_con)
         elif dim=="f_r":
             coords["f_r"] = sim.relax_freq
         else:

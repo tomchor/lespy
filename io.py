@@ -244,16 +244,14 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
     if path.basename(fname).startswith('pcon_jt'):
         if n_con==None:
             n_con = sim.n_con
-        p_nd = u_nd*n_con
         pcon = []
         for i in range(n_con):
             bfile.seek(byteprec*i*(u_nd+u_fill))
             pcon.append(np.fromfile(bfile, dtype=dtype, count=u_nd).reshape((domain.nx, domain.ny, nz), order='F'))
         pcon = np.stack(pcon, axis=-1)
-        #pcon = np.fromfile(bfile, dtype=np.float64, count=p_nd).reshape((domain.nx, domain.ny, domain.nz_tot, n_con), order='F')
         pcon *= sim.pcon_scale
         if as_DA:
-            pcon=sim.DataArray(pcon, dims=['x', 'y', 'z_u', pcon_index])
+            pcon=sim.DataArray(pcon, dims=['x', 'y', 'z_u', pcon_index], n_con=n_con)
             pcon.attrs=dict(long_name="$C$", units="kg/m$^3$")
         outlist = [pcon]
     #---------
@@ -265,7 +263,6 @@ def readBinary(fname, simulation=None, domain=None, n_con=None, as_DA=True,
     if path.basename(fname).startswith('wc_jt'):
         if n_con==None:
             n_con = sim.n_con
-        p_nd = u_nd*n_con
         wc = []
         for i in range(n_con):
             bfile.seek(byteprec*i*(u_nd+u_fill))

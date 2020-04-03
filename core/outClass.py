@@ -81,7 +81,7 @@ class Output(object):
 
     def compose_pcon(self, times=None, t_ini=0, t_end=None, simulation=None,
                      apply_to_z=False, z_function=lambda x: x[:,:,0], 
-                     chunksize=None, pcon_index="index", 
+                     chunksize=None, pcon_index="index", n_con=None,
                      dtype=None, nz=None, nz_full=None):
         """
         Puts together particle outputs in space (for ENDLESS patches) and in time
@@ -138,8 +138,9 @@ class Output(object):
         pcons = []
         for i, fname in enumerate(bins):
             print(i, fname)
-            con = io.readBinary(fname, simulation=sim, n_con=sim.n_con, 
-                                as_DA=True, nz=nz, nz_full=nz_full, pcon_index=pcon_index)
+            con = io.readBinary(fname, simulation=sim,
+                                as_DA=True, nz=nz, nz_full=nz_full, 
+                                pcon_index=pcon_index, n_con=n_con)
 
             #--------
             # Here we apply the z_function to 4D patch, making it 3D (x, y, n_con), and merge
