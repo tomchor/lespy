@@ -202,12 +202,12 @@ def diff_z(da, n=1, z_final=None):
     #----
     # Get z-dependentr variables
     z = da.z.values
-    Δz = np.diff(z).mean()
+    Δz = abs(np.median(np.diff(z)))
     #----
 
     #----
     # Get final z recursively
-    da_z = da.diff("z", n) / Δz
+    da_z = da.diff("z", n) / Δz**2
     for ni in range(1,n+1):
         z = (z[1:] + z[:-1])/2
     #----
