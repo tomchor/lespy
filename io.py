@@ -529,7 +529,12 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False,
     u = read_aver2(outdir+"/aver_u.out", dims=["ndtime", "z_u",])*sim.u_scale
     v = read_aver2(outdir+"/aver_v.out", dims=["ndtime", "z_u",])*sim.u_scale
     w = read_aver2(outdir+"/aver_w.out", dims=["ndtime", "z_w",])*sim.u_scale
-    θ = read_aver2(outdir+"/aver_theta.out", dims=["ndtime", "z_u"])*sim.t_scale
+    θ_nd = read_aver2(outdir+"/aver_theta.out", dims=["ndtime", "z_u"])
+    if sim.ocean_flag:
+        θ = 2.*sim.t_init - θ_nd*sim.t_scale
+    else:
+        θ = θ_nd * sim.t_scale
+
     if sim.pcon_flag:
         C = read_aver2(outdir+"/aver_PCon.out", dims=["ndtime", "z_u", pci])*sim.pcon_scale
     #------
