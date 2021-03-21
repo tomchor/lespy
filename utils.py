@@ -59,7 +59,7 @@ def nameParser(fname):
 
     if 'con_tt' in fname:
         numbers = re.split('[a-z. +_]',fname)
-        ndtime, pcon_n, row, col = [ int(el) for el in numbers if el is not '' ]
+        ndtime, pcon_n, row, col = [ int(el) for el in numbers if el != '' ]
         return int(ndtime), pcon_n, row, col
     else:
         ndtime = [ el for el in re.split('[a-z. +_]',fname) if el!= '' ][-1]
