@@ -492,6 +492,8 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False,
     uw_res = read_aver2(outdir+"/aver_uw.out", dims=["ndtime", "z_w"])*sim.u_scale**2
     vw_res = read_aver2(outdir+"/aver_vw.out", dims=["ndtime", "z_w"])*sim.u_scale**2
 
+    uv_res = read_aver2(outdir+"/avg_vw.out", dims=["ndtime", "z_u"])*sim.u_scale**2
+
     u2_res = read_aver2(outdir+"/aver_u2.out", dims=["ndtime", "z_u"])*sim.u_scale**2
     v2_res = read_aver2(outdir+"/aver_v2.out", dims=["ndtime", "z_u"])*sim.u_scale**2
     w2_res = read_aver2(outdir+"/aver_w2.out", dims=["ndtime", "z_w"])*sim.u_scale**2
@@ -499,9 +501,27 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False,
     uw_sgs = read_aver2(outdir+"/aver_txz.out", dims=["ndtime", "z_w"])*sim.u_scale**2
     vw_sgs = read_aver2(outdir+"/aver_tyz.out", dims=["ndtime", "z_w"])*sim.u_scale**2
 
+    uv_sgs = read_aver2(outdir+"/avg_txy.out", dims=["ndtime", "z_u"])*sim.u_scale**2
+
     u2_sgs = read_aver2(outdir+"/aver_txx.out", dims=["ndtime", "z_u"])*sim.u_scale**2
     v2_sgs = read_aver2(outdir+"/aver_tyy.out", dims=["ndtime", "z_u"])*sim.u_scale**2
     w2_sgs = read_aver2(outdir+"/aver_tzz.out", dims=["ndtime", "z_w"])*sim.u_scale**2
+    #------
+
+    #------
+    # Third moments
+    u2w_res = read_aver2(outdir+"/avg_u2w.out", dims=["ndtime", "z_w"])*sim.u_scale**3
+    v2w_res = read_aver2(outdir+"/avg_v2w.out", dims=["ndtime", "z_w"])*sim.u_scale**3
+
+    u3_res = read_aver2(outdir+"/avg_u3.out", dims=["ndtime", "z_u"])*sim.u_scale**3
+    v3_res = read_aver2(outdir+"/avg_v3.out", dims=["ndtime", "z_u"])*sim.u_scale**3
+    w3_res = read_aver2(outdir+"/avg_w3.out", dims=["ndtime", "z_w"])*sim.u_scale**3
+
+    pw_res = read_aver2(outdir+"/avg_pw.out", dims=["ndtime", "z_w"])*sim.u_scale**3
+
+    #u2w_sgs = read_aver2(outdir+"/avg_wtxx.out", dims=["ndtime", "z_w"])*sim.u_scale**3
+    #v2w_sgs = read_aver2(outdir+"/avg_wtyy.out", dims=["ndtime", "z_w"])*sim.u_scale**3
+    #w3_sgs = read_aver2(outdir+"/avg_wtzz.out", dims=["ndtime", "z_w"])*sim.u_scale**3
     #------
 
     #------
@@ -509,6 +529,10 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False,
     if sim.ocean_flag:
         uw_res = -uw_res; uw_sgs = -uw_sgs
         vw_res = -vw_res; vw_sgs = -vw_sgs
+        u2w_res = -u2w_res
+        v2w_res = -v2w_res
+        w3_res = -w3_res
+        pw_res = -pw_res
     #------
 
     #------
@@ -529,27 +553,17 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False,
     u = read_aver2(outdir+"/aver_u.out", dims=["ndtime", "z_u",])*sim.u_scale
     v = read_aver2(outdir+"/aver_v.out", dims=["ndtime", "z_u",])*sim.u_scale
     w = read_aver2(outdir+"/aver_w.out", dims=["ndtime", "z_w",])*sim.u_scale
+    p = read_aver2(outdir+"/avg_p.out", dims=["ndtime", "z_u",])*sim.u_scale**2
     θ_nd = read_aver2(outdir+"/aver_theta.out", dims=["ndtime", "z_u"])
     if sim.ocean_flag:
         θ = 2.*sim.t_init - θ_nd*sim.t_scale
+        w = -w
     else:
         θ = θ_nd * sim.t_scale
 
     if sim.pcon_flag:
         C = read_aver2(outdir+"/aver_PCon.out", dims=["ndtime", "z_u", pci])*sim.pcon_scale
     #------
-
-    if verbose: print("Reading averaged derivatives")
-
-    #------
-    # Derivatives
-#    dudz = read_aver2(outdir+"/aver_dudz.out", dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
-#    dvdz = read_aver2(outdir+"/aver_dvdz.out", dims=["ndtime", "z_w"])*sim.u_scale/sim.z_i
-#    dθdz = read_aver2(outdir+"/aver_dTdz.out", dims=["ndtime", "z_w"])*sim.t_scale/sim.z_i
-#    if sim.pcon_flag:
-#        dC0dz = read_aver2(outdir+"/aver_dPCondz.out", dims=["ndtime", "z_w", pci])*sim.pcon_scale/sim.z_i
-    #------
-
 
     if verbose: print("Reading dissipation")
     #------
@@ -561,6 +575,8 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False,
     uw = uw_res + uw_sgs
     vw = vw_res + vw_sgs
     wθ = wθ_res + wθ_sgs
+
+    uv = uv_res + uv_sgs
 
     u2 = u2_res + u2_sgs
     v2 = v2_res + v2_sgs
@@ -574,20 +590,24 @@ def readall_aver(outdir, sim=None, pcon_index="index", verbose=False,
     dict_unode = dict(ε=ε,
                       u=u, v=v, θ=θ, 
                       u2=u2, v2=v2,
+                      uv=uv,
                       u2_res=u2_res, v2_res=v2_res,
                       u2_sgs=u2_sgs, v2_sgs=v2_sgs,
+                      u3_res=u3_res, v3_res=v3_res,
+                      uv_res=uv_res, uv_sgs=uv_sgs,
+                      p=p,
                       )
     dict_wnode = dict(w=w, 
                       uw=uw, vw=vw, w2=w2, wθ=wθ, 
                       uw_res=uw_res, vw_res=vw_res, w2_res=w2_res, wθ_res=wθ_res, 
                       uw_sgs=uw_sgs, vw_sgs=vw_sgs, w2_sgs=w2_sgs, wθ_sgs=wθ_sgs, 
-#                      dudz=dudz, dvdz=dvdz, dθdz=dθdz,
+                      u2w_res=u2w_res, v2w_res=v2w_res, w3_res=w3_res,
+                      pw_res=pw_res,
                       )
     if sim.pcon_flag:
         dict_wnode["wc_res"] = wc_res
         dict_wnode["wc_sgs"] = wc_sgs
         dict_wnode["wc"] = wc
-#        dict_wnode["dC0dz"] = dC0dz
         dict_unode["C"] = C
     ds_unode = xr.Dataset(dict_unode)
     ds_wnode = xr.Dataset(dict_wnode)
