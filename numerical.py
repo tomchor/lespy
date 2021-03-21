@@ -39,6 +39,46 @@ def diff_fft_xr(da, n=1, dim=None, shift=False, real=True, reshape=False, **kwar
     import xarray as xr
 
     kdim = 'freq_'+dim
+    original_coords = da[dim]
+
+    #----
+    # Perform forward DFT
+    wave = xrft.fft(da, dim=dim, **kwargs)
+    freq = wave.coords[kdim]
+    #----
+
+    #----
+    # Multiply amplitudes by 2πk
+    multiplied_amplitudes = pow(1j*2*np.pi*freq, n) * wave
+    #----
+
+    #----
+    # Perform inverse DFT
+    deriv = xrft.ifft(multiplied_amplitudes, dim=kdim, **kwargs)
+    #----
+
+    #----
+    return deriv.real.assign_coords({ dim : original_coords })
+    #----
+
+
+def diff_fft_mixed(da, n=1, dim=None, shift=False, real=True, reshape=False, **kwargs):
+    """
+    Calculate derivative of a DataArray using fft
+
+    Notes:
+    - Changing the zero frequency doesn't change the output as far
+        as the derivative goes.
+    - Normalizing the fourier coefficients by N, yields derivatives
+        that are 1/N the expected value.
+    - The nyquist frequency is generally pretty small so setting it to
+        zero generally doesn't do anything.
+    """
+    import numpy as np
+    import xrft
+    import xarray as xr
+
+    kdim = 'freq_'+dim
 
     #----
     # Perform forward DFT
@@ -51,7 +91,7 @@ def diff_fft_xr(da, n=1, dim=None, shift=False, real=True, reshape=False, **kwar
 
     #----
     # Multiply amplitudes by 2πk
-    ikF = (pow(1.j*2.*np.pi, n)*wave*freq)
+    ikF = pow(1.j*2.*np.pi*freq, n) * wave
     #----
 
     #----
@@ -202,12 +242,12 @@ def diff_z(da, n=1, z_final=None):
     #----
     # Get z-dependentr variables
     z = da.z.values
-    Δz = abs(np.median(np.diff(z)))
+    Δz = np.median(np.diff(z))
     #----
 
     #----
     # Get final z recursively
-    da_z = da.diff("z", n) / Δz**2
+    da_z = da.diff("z", n) / Δz**n
     for ni in range(1,n+1):
         z = (z[1:] + z[:-1])/2
     #----
