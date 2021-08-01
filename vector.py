@@ -1,5 +1,6 @@
 import numpy as _np
 import xarray as _xr
+π = _np.pi
 
 def vorticity(u,v,w, simulation=None, domain=None, axes=[1,2,3], as_dataarray=True):
     """Calculates the 3D relative vorticity"""
@@ -110,9 +111,9 @@ def velgrad_tensor(u_vec, simulation=None, trim=True, w_int=None, as_DA=True):
 
 
 def gradient_xr(da, dim):
-    ds = da.coords[dim].diff(dim)[0].item()
+    spacing = da.coords[dim].diff(dim)[0].item()
     grad_da = da.copy(deep=True)
-    grad_da = grad_da.where(False, _np.gradient(da, ds, axis=da.dims.index(dim)))
+    grad_da = grad_da.where(False, _np.gradient(da, spacing, axis=da.dims.index(dim)))
     return grad_da
 
 
@@ -138,12 +139,12 @@ def get_QD(uv, verbose=True):
 
 
 
-def gaussian_conv(da, delta=1, dims=["x", "y"], truncate=4, how="manual", 
+def gaussian_conv(da, δ=1, dims=["x", "y"], truncate=3, how="auto", 
                   full_output=False, **kwargs):
     """ 
     Applies convolution with gaussian kernel 
 
-    delta: is the std of the guassian (in meters)
+    δ: is the std of the guassian (in meters)
     how: if manual we calculate kernel manually using Pope's Table 13.2. If auto, we do it using scipy's gaussian_filter1d
     """
     from scipy.ndimage import convolve1d
@@ -160,21 +161,28 @@ def gaussian_conv(da, delta=1, dims=["x", "y"], truncate=4, how="manual",
         #----
         # Calculate kernel resolution
         s = da.coords[dim]
-        ds = abs(s.diff(dim)[0].item())
+        spacing = abs(s.diff(dim)[0].item())
         #----
         if how=="manual":
-            r = _np.arange(0, delta*truncate+ds, ds)
+            r = _np.arange(0, δ*truncate+spacing, spacing)
             r = _np.sort(_np.concatenate([-r[1:], r]))
 
             # calculate 1d kernel
-            G = _np.sqrt(6/(_np.pi*delta**2)) * _np.exp(-6*(r/delta)**2)
+            G = _np.sqrt(6/(π*δ**2)) * _np.exp(-6*(r/δ)**2)
             G /= G.sum()
-            if delta==0: G=_np.array([1,])
+            if δ==0: G=_np.array([1,])
 
             da = _xr.apply_ufunc(convolve1d, da, G, kwargs=dict(axis=axis, mode=bc, cval=0), **kwargs)
 
         elif how=="auto":
-            da = _xr.apply_ufunc(gaussian_filter1d, da, kwargs=dict(axis=axis, mode=bc, cval=0, sigma=delta/ds, truncate=truncate), **kwargs)
+            da = _xr.apply_ufunc(gaussian_filter1d, da, kwargs=dict(axis=axis, 
+                                                                    mode=bc, 
+                                                                    cval=0, 
+                                                                    sigma=δ/spacing, 
+                                                                    truncate=truncate,
+                                                                    ), 
+                                 dask = "parallelized",
+                                 **kwargs)
 
     if full_output and how=="manual":
         return r, G, da
